@@ -719,6 +719,11 @@
         <version>3.4.0.Final</version>
       </dependency>
       <dependency>
+        <groupId>org.objenesis</groupId>
+        <artifactId>objenesis</artifactId>
+        <version>2.5.1</version>
+      </dependency>
+      <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-api-easymock</artifactId>
         <version>${powermock.version}</version>
@@ -752,6 +757,25 @@
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-nop</artifactId>
         <version>${slf4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>cglib</groupId>
+        <artifactId>cglib-nodep</artifactId>
+        <version>3.1</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.groovy</groupId>
+        <artifactId>groovy-all</artifactId>
+        <version>2.4.4</version>
+        <type>pom</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.spockframework</groupId>
+        <artifactId>spock-core</artifactId>
+        <version>1.0-groovy-2.4</version>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -904,6 +928,50 @@
           </configuration>
         </plugin>
         <plugin>
+          <groupId>org.codehaus.gmavenplus</groupId>
+          <artifactId>gmavenplus-plugin</artifactId>
+          <version>1.7.0</version>
+          <dependencies>
+            <dependency>
+              <groupId>org.codehaus.groovy</groupId>
+              <artifactId>groovy-all</artifactId>
+              <!-- any version of Groovy \>= 1.5.0 should work here -->
+              <version>2.4.8</version>
+              <type>pom</type>
+              <scope>runtime</scope>
+            </dependency>
+          </dependencies>
+          <executions>
+            <execution>
+              <goals>
+                <goal>addSources</goal>
+                <goal>addTestSources</goal>
+                <goal>generateStubs</goal>
+                <goal>compile</goal>
+                <goal>generateTestStubs</goal>
+                <goal>compileTests</goal>
+                <goal>removeStubs</goal>
+                <goal>removeTestStubs</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-source-plugin</artifactId>
+          <!-- source plugin \> = 2.1 is required to use the no-fork goals -->
+          <version>2.4</version>
+          <executions>
+            <execution>
+              <id>attach-sources</id>
+              <goals>
+                <goal>jar-no-fork</goal>
+                <goal>test-jar-no-fork</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
@@ -913,6 +981,10 @@
               <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
             </systemPropertyVariables>
             <argLine>${unitTestMemSize}</argLine>
+            <includes>
+              <include>**/*Spec.java</include>
+              <include>**/*Test.java</include>
+            </includes>
           </configuration>
         </plugin>
         <plugin>
@@ -1540,6 +1612,8 @@
               <configuration>
                 <sourceFileIncludes>
                   <sourceFileInclude>**/org/apache/accumulo/core/client/**/*.java</sourceFileInclude>
+                  <sourceFileInclude>**/org/apache/accumulo/core/client/**/*
+                    .groovy</sourceFileInclude>
                   <sourceFileInclude>**/org/apache/accumulo/core/data/**/*.java</sourceFileInclude>
                   <sourceFileInclude>**/org/apache/accumulo/core/security/**/*.java</sourceFileInclude>
                   <sourceFileInclude>**/org/apache/accumulo/minicluster/**/*.java</sourceFileInclude>
