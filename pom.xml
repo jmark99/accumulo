@@ -157,11 +157,6 @@
     <dependencies>
       <!--Spock mocking dependencies -->
       <dependency>
-        <groupId>cglib</groupId>
-        <artifactId>cglib-nodep</artifactId>
-        <version>3.2.5</version>
-      </dependency>
-      <dependency>
         <groupId>com.beust</groupId>
         <artifactId>jcommander</artifactId>
         <version>1.72</version>
@@ -545,11 +540,6 @@
         <version>${bouncycastle.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.codehaus.groovy.modules.http-builder</groupId>
-        <artifactId>http-builder</artifactId>
-        <version>0.7.1</version>
-      </dependency>
-      <dependency>
         <groupId>org.easymock</groupId>
         <artifactId>easymock</artifactId>
         <version>3.6</version>
@@ -730,11 +720,6 @@
         <version>3.4.0.Final</version>
       </dependency>
       <dependency>
-        <groupId>org.objenesis</groupId>
-        <artifactId>objenesis</artifactId>
-        <version>2.6</version>
-      </dependency>
-      <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-api-easymock</artifactId>
         <version>${powermock.version}</version>
@@ -775,11 +760,6 @@
         <version>1.1-groovy-2.4</version>
       </dependency>
       <dependency>
-        <groupId>org.spockframework</groupId>
-        <artifactId>spock-spring</artifactId>
-        <version>1.1-groovy-2.4</version>
-      </dependency>
-      <dependency>
         <groupId>org.codehaus.groovy</groupId>
         <artifactId>groovy</artifactId>
         <version>2.4.7</version>
@@ -789,24 +769,8 @@
   </dependencyManagement>
   <dependencies>
     <dependency>
-      <groupId>cglib</groupId>
-      <artifactId>cglib-nodep</artifactId>
-    </dependency>
-    <dependency>
       <groupId>com.github.spotbugs</groupId>
       <artifactId>spotbugs-annotations</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.groovy</groupId>
-      <artifactId>groovy</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.objenesis</groupId>
-      <artifactId>objenesis</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.spockframework</groupId>
-      <artifactId>spock-core</artifactId>
     </dependency>
   </dependencies>
   <build>
@@ -1176,6 +1140,8 @@
                 <unusedDeclaredDependency>com.github.spotbugs:spotbugs-annotations:jar:${spotbugs.version}</unusedDeclaredDependency>
                 <!-- ignore unused native; analysis isn't possible with tar.gz dependency -->
                 <unusedDeclaredDependency>org.apache.accumulo:accumulo-native:tar.gz:${project.version}</unusedDeclaredDependency>
+                <unusedDeclaredDependency>org.codehaus.groovy:groovy:2.4.7</unusedDeclaredDependency>
+                <unusedDeclaredDependency>org.spockframework:spock-core:1.1-groovy-2.4</unusedDeclaredDependency>
               </ignoredUnusedDeclaredDependencies>
             </configuration>
           </execution>
