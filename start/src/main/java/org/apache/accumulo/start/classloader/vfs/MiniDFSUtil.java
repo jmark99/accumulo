@@ -16,6 +16,8 @@
  */
 package org.apache.accumulo.start.classloader.vfs;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -29,7 +31,8 @@ public class MiniDFSUtil {
     // with the correct permissions.
     try {
       Process p = Runtime.getRuntime().exec("/bin/sh -c umask");
-      try (BufferedReader bri = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
+      try (BufferedReader bri =
+          new BufferedReader(new InputStreamReader(p.getInputStream(), UTF_8))) {
         String line = bri.readLine();
         p.waitFor();
 

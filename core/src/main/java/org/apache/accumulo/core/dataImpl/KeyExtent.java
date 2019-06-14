@@ -337,7 +337,7 @@ public class KeyExtent implements WritableComparable<KeyExtent> {
 
   private boolean equals(Text t1, Text t2) {
     if (t1 == null || t2 == null)
-      return t1 == t2;
+      return t1.equals(t2);
 
     return t1.equals(t2);
   }
@@ -509,9 +509,9 @@ public class KeyExtent implements WritableComparable<KeyExtent> {
 
     for (KeyExtent tabletKe : tablets) {
 
-      if (ke.getPrevEndRow() == tabletKe.getPrevEndRow()
-          || ke.getPrevEndRow() != null && tabletKe.getPrevEndRow() != null
-              && tabletKe.getPrevEndRow().compareTo(ke.getPrevEndRow()) == 0) {
+      if ((Objects.equals(ke.getPrevEndRow(), tabletKe.getPrevEndRow()))
+          || (ke.getPrevEndRow() != null) && (tabletKe.getPrevEndRow() != null) && (
+          tabletKe.getPrevEndRow().compareTo(ke.getPrevEndRow()) == 0)) {
         children = new TreeSet<>();
       }
 
@@ -519,8 +519,8 @@ public class KeyExtent implements WritableComparable<KeyExtent> {
         children.add(tabletKe);
       }
 
-      if (ke.getEndRow() == tabletKe.getEndRow() || ke.getEndRow() != null
-          && tabletKe.getEndRow() != null && tabletKe.getEndRow().compareTo(ke.getEndRow()) == 0) {
+      if ((Objects.equals(ke.getEndRow(), tabletKe.getEndRow())) || (ke.getEndRow() != null) && (
+          tabletKe.getEndRow() != null) && (tabletKe.getEndRow().compareTo(ke.getEndRow()) == 0)) {
         return children;
       }
     }

@@ -71,7 +71,7 @@ public class LocalityGroupUtil {
   public static ImmutableSet<ByteSequence> families(Collection<Column> columns) {
     if (columns.size() == 0)
       return EMPTY_CF_SET;
-    Builder<ByteSequence> builder = ImmutableSet.builder();
+    ImmutableSet.Builder<ByteSequence> builder = ImmutableSet.builder();
     columns.forEach(c -> builder.add(new ArrayByteSequence(c.getColumnFamily())));
     return builder.build();
   }

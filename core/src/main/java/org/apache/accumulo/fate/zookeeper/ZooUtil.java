@@ -397,7 +397,6 @@ public class ZooUtil {
 
   public static void recursiveCopyPersistent(ZooKeeperConnectionInfo info, String source,
       String destination, NodeExistsPolicy policy) throws KeeperException, InterruptedException {
-    Stat stat = null;
     if (!exists(info, source))
       throw KeeperException.create(Code.NONODE, source);
     if (exists(info, destination)) {
@@ -412,7 +411,7 @@ public class ZooUtil {
       }
     }
 
-    stat = new Stat();
+    Stat stat = new Stat();
     byte[] data = getData(info, source, stat);
 
     if (stat.getEphemeralOwner() == 0) {

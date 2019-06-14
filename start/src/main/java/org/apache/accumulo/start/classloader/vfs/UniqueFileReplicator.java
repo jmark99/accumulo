@@ -43,7 +43,7 @@ public class UniqueFileReplicator implements VfsComponent, FileReplicator {
 
   private File tempDir;
   private VfsComponentContext context;
-  private List<File> tmpFiles = Collections.synchronizedList(new ArrayList<>());
+  private final List<File> tmpFiles = Collections.synchronizedList(new ArrayList<>());
 
   public UniqueFileReplicator(File tempDir) {
     this.tempDir = tempDir;

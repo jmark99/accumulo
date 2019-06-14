@@ -127,12 +127,12 @@ public enum PropertyType {
 
   URI("uri", x -> true, "A valid URI");
 
-  private String shortname, format;
+  private final String shortname, format;
   // Field is transient because enums are Serializable, but Predicates aren't necessarily,
   // and our lambdas certainly aren't; This shouldn't matter because enum serialization doesn't
   // store fields, so this is a false positive in our spotbugs version
   // see https://github.com/spotbugs/spotbugs/issues/740
-  private transient Predicate<String> predicate;
+  private final transient Predicate<String> predicate;
 
   private PropertyType(String shortname, Predicate<String> predicate, String formatDescription) {
     this.shortname = shortname;

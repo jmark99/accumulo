@@ -692,7 +692,7 @@ public class TableOperationsImpl extends TableOperationsHelper {
     if (endRows.size() <= maxSplits)
       return endRows;
 
-    double r = (maxSplits + 1) / (double) (endRows.size());
+    double r = (maxSplits + 1) / (double) endRows.size();
     double pos = 0;
 
     ArrayList<Text> subset = new ArrayList<>(maxSplits);
