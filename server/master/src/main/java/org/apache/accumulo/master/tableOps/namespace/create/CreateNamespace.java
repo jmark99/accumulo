@@ -19,15 +19,22 @@
 package org.apache.accumulo.master.tableOps.namespace.create;
 
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 
-public class CreateNamespace extends MasterRepo {
+public class CreateNamespace extends MasterRepo implements FateLogger {
   private static final long serialVersionUID = 1L;
+
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private NamespaceInfo namespaceInfo;
 
@@ -45,10 +52,14 @@ public class CreateNamespace extends MasterRepo {
 
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
+
+    String fateId = String.format("%016x", tid);
     Utils.getIdLock().lock();
     try {
       namespaceInfo.namespaceId =
           Utils.getNextId(namespaceInfo.namespaceName, master.getContext(), NamespaceId::of);
+      fLogger.info(">>>> {}:\tObtained namespaceID: '{}'",
+          fateId, namespaceInfo.namespaceId.toString());
       return new SetupNamespacePermissions(namespaceInfo);
     } finally {
       Utils.getIdLock().unlock();

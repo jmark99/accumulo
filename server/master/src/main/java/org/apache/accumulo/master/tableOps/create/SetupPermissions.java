@@ -21,16 +21,20 @@ package org.apache.accumulo.master.tableOps.create;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.security.TablePermission;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SecurityOperation;
+
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class SetupPermissions extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private TableInfo tableInfo;
 
@@ -52,6 +56,7 @@ class SetupPermissions extends MasterRepo {
           throw e;
         }
       }
+      fLogger.info("{}:\tSetting table permissions", String.format("%016x", tid));
     }
 
     // setup permissions in zookeeper before table info in zookeeper

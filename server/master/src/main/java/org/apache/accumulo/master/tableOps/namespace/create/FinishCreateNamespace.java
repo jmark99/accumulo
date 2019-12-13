@@ -20,13 +20,17 @@ package org.apache.accumulo.master.tableOps.namespace.create;
 
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.Master;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
+
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class FinishCreateNamespace extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private NamespaceInfo namespaceInfo;
 
@@ -48,6 +52,9 @@ class FinishCreateNamespace extends MasterRepo {
 
     LoggerFactory.getLogger(FinishCreateNamespace.class)
         .debug("Created table " + namespaceInfo.namespaceId + " " + namespaceInfo.namespaceName);
+
+    fLogger.info(">>>> {}:\tNamespace {}:{} creation completed",
+        String.format("%016x", id), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
 
     return null;
   }

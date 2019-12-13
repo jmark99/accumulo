@@ -22,8 +22,12 @@ import java.io.IOException;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
@@ -37,6 +41,7 @@ import org.apache.hadoop.io.Text;
 
 class ChooseDir extends MasterRepo {
   private static final long serialVersionUID = 1L;
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private final TableInfo tableInfo;
 
@@ -52,6 +57,7 @@ class ChooseDir extends MasterRepo {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     if (tableInfo.getInitialSplitSize() > 0) {
+      fLogger.info("{}:\tCreating directories for splits", String.format("%016x", tid));
       createTableDirectoriesInfo(master);
     }
     return new PopulateMetadata(tableInfo);

@@ -20,10 +20,14 @@ package org.apache.accumulo.master.tableOps.create;
 
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.accumulo.core.client.admin.InitialTableState;
 import org.apache.accumulo.core.master.state.tables.TableState;
 import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
@@ -34,6 +38,7 @@ import org.apache.hadoop.fs.Path;
 class FinishCreateTable extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private final TableInfo tableInfo;
 
@@ -52,15 +57,19 @@ class FinishCreateTable extends MasterRepo {
     if (tableInfo.getInitialTableState() == InitialTableState.OFFLINE) {
       env.getContext().getTableManager().transitionTableState(tableInfo.getTableId(),
           TableState.OFFLINE);
+      fLogger.info("{}:\tSetting initial table state to OFFLINE", String.format("%016x", tid));
     } else {
       env.getContext().getTableManager().transitionTableState(tableInfo.getTableId(),
           TableState.ONLINE);
+      fLogger.info("{}:\tSetting initial table state to ONLINE", String.format("%016x", tid));
     }
 
     Utils.unreserveNamespace(env, tableInfo.getNamespaceId(), tid, false);
     Utils.unreserveTable(env, tableInfo.getTableId(), tid, true);
 
     env.getEventCoordinator().event("Created table %s ", tableInfo.getTableName());
+    fLogger.info("{}:\tCreated table '{}'", String.format("%016x", tid),  tableInfo.getTableName());
+    fLogger.info("END Fate transaction {}", String.format("%016x", tid));
 
     if (tableInfo.getInitialSplitSize() > 0) {
       cleanupSplitFiles(env);

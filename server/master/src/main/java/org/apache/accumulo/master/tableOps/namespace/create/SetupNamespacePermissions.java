@@ -22,14 +22,19 @@ import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.security.NamespacePermission;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.Master;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SecurityOperation;
+
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class SetupNamespacePermissions extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
+
+  private static Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private NamespaceInfo namespaceInfo;
 
@@ -39,6 +44,7 @@ class SetupNamespacePermissions extends MasterRepo {
 
   @Override
   public Repo<Master> call(long tid, Master env) throws Exception {
+    String fateId = String.format("%016x", tid);
     // give all namespace permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
     for (NamespacePermission permission : NamespacePermission.values()) {
@@ -50,6 +56,7 @@ class SetupNamespacePermissions extends MasterRepo {
         throw e;
       }
     }
+    fLogger.info(">>>> {}:\tGranted namespace permissions:", fateId);
 
     // setup permissions in zookeeper before table info in zookeeper
     // this way concurrent users will not get a spurious permission denied

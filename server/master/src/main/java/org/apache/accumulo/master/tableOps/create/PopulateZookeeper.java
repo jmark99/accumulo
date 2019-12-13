@@ -20,10 +20,14 @@ package org.apache.accumulo.master.tableOps.create;
 
 import java.util.Map.Entry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
@@ -33,6 +37,7 @@ import org.apache.accumulo.server.util.TablePropUtil;
 class PopulateZookeeper extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private TableInfo tableInfo;
 
@@ -64,6 +69,9 @@ class PopulateZookeeper extends MasterRepo {
             entry.getValue());
 
       Tables.clearCache(master.getContext());
+
+      fLogger.info("{}:\tWriting tableName and tableId to ZooKeeper", String.format("%016x", tid));
+
       return new ChooseDir(tableInfo);
     } finally {
       Utils.getTableNameLock().unlock();

@@ -24,6 +24,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedSet;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.admin.TimeType;
@@ -36,6 +39,7 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.Se
 import org.apache.accumulo.core.metadata.schema.MetadataTime;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooLock;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
@@ -50,6 +54,7 @@ import com.google.common.collect.Iterables;
 class PopulateMetadata extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private final TableInfo tableInfo;
 
@@ -79,6 +84,7 @@ class PopulateMetadata extends MasterRepo {
             splitDirMap, tableInfo.getTimeType(), environment.getMasterLock(), bw);
       }
     }
+    fLogger.info("{}:\tPopulated metadata table", String.format("%016x", tid));
     return new FinishCreateTable(tableInfo);
   }
 

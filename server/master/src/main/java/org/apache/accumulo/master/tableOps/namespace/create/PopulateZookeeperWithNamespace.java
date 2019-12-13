@@ -20,10 +20,14 @@ package org.apache.accumulo.master.tableOps.namespace.create;
 
 import java.util.Map.Entry;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -34,6 +38,8 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
 
+  private static Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
+
   private NamespaceInfo namespaceInfo;
 
   PopulateZookeeperWithNamespace(NamespaceInfo ti) {
@@ -42,13 +48,13 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
 
   @Override
   public long isReady(long id, Master environment) throws Exception {
+    fLogger.info(">>>> {}:\tReserving Namespace", String.format("%016x", id));
     return Utils.reserveNamespace(environment, namespaceInfo.namespaceId, id, true, false,
         TableOperation.CREATE);
   }
 
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
-
     Utils.getTableNameLock().lock();
     try {
       Utils.checkNamespaceDoesNotExist(master.getContext(), namespaceInfo.namespaceName,
@@ -61,6 +67,9 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
       for (Entry<String,String> entry : namespaceInfo.props.entrySet())
         NamespacePropUtil.setNamespaceProperty(master.getContext(), namespaceInfo.namespaceId,
             entry.getKey(), entry.getValue());
+
+      fLogger.info(">>>> {}:\tPopulated zookeeper with namespace info",
+          String.format("%016x", tid));
 
       Tables.clearCache(master.getContext());
 
@@ -75,6 +84,8 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
     master.getTableManager().removeNamespace(namespaceInfo.namespaceId);
     Tables.clearCache(master.getContext());
     Utils.unreserveNamespace(master, namespaceInfo.namespaceId, tid, true);
+    fLogger.info(">>>> {}:\tRemoved Namespace '{}'", String.format("%016x", tid),
+        namespaceInfo.namespaceId);
   }
 
 }

@@ -20,12 +20,16 @@ package org.apache.accumulo.master.tableOps.create;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.accumulo.core.client.admin.InitialTableState;
 import org.apache.accumulo.core.client.admin.TimeType;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
@@ -33,6 +37,8 @@ import org.apache.accumulo.master.tableOps.Utils;
 
 public class CreateTable extends MasterRepo {
   private static final long serialVersionUID = 1L;
+
+  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private TableInfo tableInfo;
 
@@ -70,6 +76,8 @@ public class CreateTable extends MasterRepo {
     try {
       String tName = tableInfo.getTableName();
       tableInfo.setTableId(Utils.getNextId(tName, master.getContext(), TableId::of));
+      fLogger.info(">>>> {}:\tSetting table ID to {}", String.format("%016x", tid),
+          tableInfo.getTableId().canonical());
       return new SetupPermissions(tableInfo);
     } finally {
       Utils.getIdLock().unlock();
@@ -79,6 +87,8 @@ public class CreateTable extends MasterRepo {
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, tableInfo.getNamespaceId(), tid, false);
+    fLogger.info(">>>> {}:\tUn-reserving namespace {}", String.format("%016x", tid),
+        tableInfo.getNamespaceId());
   }
 
 }
