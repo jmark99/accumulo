@@ -69,7 +69,7 @@ class FinishCreateTable extends MasterRepo {
 
     env.getEventCoordinator().event("Created table %s ", tableInfo.getTableName());
     fLogger.info("{}:\tCreated table '{}'", String.format("%016x", tid),  tableInfo.getTableName());
-    fLogger.info("END Fate transaction {}", String.format("%016x", tid));
+    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
 
     if (tableInfo.getInitialSplitSize() > 0) {
       cleanupSplitFiles(env);

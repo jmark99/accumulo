@@ -70,7 +70,8 @@ class PopulateZookeeper extends MasterRepo {
 
       Tables.clearCache(master.getContext());
 
-      fLogger.info("{}:\tWriting tableName and tableId to ZooKeeper", String.format("%016x", tid));
+      fLogger.info("{}:\tWriting tablename ({}) and tableId ({}) to ZooKeeper", String.format(
+          "%016x", tid), tableInfo.getTableName(), tableInfo.getTableId());
 
       return new ChooseDir(tableInfo);
     } finally {

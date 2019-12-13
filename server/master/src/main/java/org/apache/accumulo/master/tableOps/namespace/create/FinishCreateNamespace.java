@@ -53,7 +53,7 @@ class FinishCreateNamespace extends MasterRepo {
     LoggerFactory.getLogger(FinishCreateNamespace.class)
         .debug("Created table " + namespaceInfo.namespaceId + " " + namespaceInfo.namespaceName);
 
-    fLogger.info(">>>> {}:\tNamespace {}:{} creation completed",
+    fLogger.info("{}:\tNamespace {}:{} creation completed",
         String.format("%016x", id), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
 
     return null;

@@ -58,7 +58,7 @@ public class CreateNamespace extends MasterRepo implements FateLogger {
     try {
       namespaceInfo.namespaceId =
           Utils.getNextId(namespaceInfo.namespaceName, master.getContext(), NamespaceId::of);
-      fLogger.info(">>>> {}:\tObtained namespaceID: '{}'",
+      fLogger.info("{}:\tObtaining namespaceID: '{}'",
           fateId, namespaceInfo.namespaceId.toString());
       return new SetupNamespacePermissions(namespaceInfo);
     } finally {

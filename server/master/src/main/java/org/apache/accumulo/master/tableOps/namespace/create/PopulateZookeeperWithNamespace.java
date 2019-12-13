@@ -48,7 +48,7 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
 
   @Override
   public long isReady(long id, Master environment) throws Exception {
-    fLogger.info(">>>> {}:\tReserving Namespace", String.format("%016x", id));
+    fLogger.info("{}:\tReserving Namespace", String.format("%016x", id));
     return Utils.reserveNamespace(environment, namespaceInfo.namespaceId, id, true, false,
         TableOperation.CREATE);
   }
@@ -68,7 +68,7 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
         NamespacePropUtil.setNamespaceProperty(master.getContext(), namespaceInfo.namespaceId,
             entry.getKey(), entry.getValue());
 
-      fLogger.info(">>>> {}:\tPopulated zookeeper with namespace info",
+      fLogger.info("{}:\tPopulating zookeeper with namespace info",
           String.format("%016x", tid));
 
       Tables.clearCache(master.getContext());
@@ -84,7 +84,7 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
     master.getTableManager().removeNamespace(namespaceInfo.namespaceId);
     Tables.clearCache(master.getContext());
     Utils.unreserveNamespace(master, namespaceInfo.namespaceId, tid, true);
-    fLogger.info(">>>> {}:\tRemoved Namespace '{}'", String.format("%016x", tid),
+    fLogger.info("{}:\tRemoved Namespace '{}'", String.format("%016x", tid),
         namespaceInfo.namespaceId);
   }
 

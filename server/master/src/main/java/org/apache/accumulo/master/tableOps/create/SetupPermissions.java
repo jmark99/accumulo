@@ -47,6 +47,7 @@ class SetupPermissions extends MasterRepo {
     // give all table permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
     if (!tableInfo.getUser().equals(env.getContext().getCredentials().getPrincipal())) {
+      fLogger.info("{}:\tSetting table permissions", String.format("%016x", tid));
       for (TablePermission permission : TablePermission.values()) {
         try {
           security.grantTablePermission(env.getContext().rpcCreds(), tableInfo.getUser(),
@@ -56,7 +57,7 @@ class SetupPermissions extends MasterRepo {
           throw e;
         }
       }
-      fLogger.info("{}:\tSetting table permissions", String.format("%016x", tid));
+      fLogger.info("{}:\tTable permissions set", String.format("%016x", tid));
     }
 
     // setup permissions in zookeeper before table info in zookeeper

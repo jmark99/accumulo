@@ -116,7 +116,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
     String fateId = String.format("%016x", opid);
 
 
-    fLogger.info("BEGIN Fate Transaction {}", fateId);
+    fLogger.info("{}: BEGIN Fate Transaction", fateId);
     switch (op) {
       case NAMESPACE_CREATE: {
         TableOperation tableOp = TableOperation.CREATE;

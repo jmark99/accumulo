@@ -57,7 +57,7 @@ class ChooseDir extends MasterRepo {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     if (tableInfo.getInitialSplitSize() > 0) {
-      fLogger.info("{}:\tCreating directories for splits", String.format("%016x", tid));
+      fLogger.info("{}:\tCreating split directories", String.format("%016x", tid));
       createTableDirectoriesInfo(master);
     }
     return new PopulateMetadata(tableInfo);

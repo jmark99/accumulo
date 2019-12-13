@@ -76,7 +76,7 @@ public class CreateTable extends MasterRepo {
     try {
       String tName = tableInfo.getTableName();
       tableInfo.setTableId(Utils.getNextId(tName, master.getContext(), TableId::of));
-      fLogger.info(">>>> {}:\tSetting table ID to {}", String.format("%016x", tid),
+      fLogger.info("{}:\tSetting table ID to {}", String.format("%016x", tid),
           tableInfo.getTableId().canonical());
       return new SetupPermissions(tableInfo);
     } finally {
@@ -87,7 +87,7 @@ public class CreateTable extends MasterRepo {
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, tableInfo.getNamespaceId(), tid, false);
-    fLogger.info(">>>> {}:\tUn-reserving namespace {}", String.format("%016x", tid),
+    fLogger.info("{}:\tUn-reserving namespace {}", String.format("%016x", tid),
         tableInfo.getNamespaceId());
   }
 

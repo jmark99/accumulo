@@ -56,7 +56,7 @@ class SetupNamespacePermissions extends MasterRepo {
         throw e;
       }
     }
-    fLogger.info(">>>> {}:\tGranted namespace permissions:", fateId);
+    fLogger.info("{}:\tGranted namespace permissions:", fateId);
 
     // setup permissions in zookeeper before table info in zookeeper
     // this way concurrent users will not get a spurious permission denied
