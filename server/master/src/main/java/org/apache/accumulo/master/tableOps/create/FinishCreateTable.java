@@ -35,10 +35,9 @@ import org.apache.accumulo.master.tableOps.Utils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-class FinishCreateTable extends MasterRepo {
+class FinishCreateTable extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private final TableInfo tableInfo;
 

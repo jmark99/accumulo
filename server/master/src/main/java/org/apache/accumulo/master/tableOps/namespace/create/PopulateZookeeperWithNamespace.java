@@ -34,11 +34,9 @@ import org.apache.accumulo.master.tableOps.Utils;
 import org.apache.accumulo.server.tables.TableManager;
 import org.apache.accumulo.server.util.NamespacePropUtil;
 
-class PopulateZookeeperWithNamespace extends MasterRepo {
+class PopulateZookeeperWithNamespace extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
-
-  private static Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private NamespaceInfo namespaceInfo;
 
@@ -48,7 +46,6 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
 
   @Override
   public long isReady(long id, Master environment) throws Exception {
-    fLogger.info("{}:\tReserving Namespace", String.format("%016x", id));
     return Utils.reserveNamespace(environment, namespaceInfo.namespaceId, id, true, false,
         TableOperation.CREATE);
   }
@@ -84,8 +81,7 @@ class PopulateZookeeperWithNamespace extends MasterRepo {
     master.getTableManager().removeNamespace(namespaceInfo.namespaceId);
     Tables.clearCache(master.getContext());
     Utils.unreserveNamespace(master, namespaceInfo.namespaceId, tid, true);
-    fLogger.info("{}:\tRemoved Namespace '{}'", String.format("%016x", tid),
-        namespaceInfo.namespaceId);
+    fLogger.info("{}:\tUndo-ing Populate ZK with Namespace info", String.format("%016x", tid));
   }
 
 }

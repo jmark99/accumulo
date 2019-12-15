@@ -27,10 +27,9 @@ import org.apache.accumulo.master.tableOps.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class FinishCreateNamespace extends MasterRepo {
+class FinishCreateNamespace extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private NamespaceInfo namespaceInfo;
 
@@ -44,18 +43,19 @@ class FinishCreateNamespace extends MasterRepo {
   }
 
   @Override
-  public Repo<Master> call(long id, Master env) {
+  public Repo<Master> call(long tid, Master env) {
 
-    Utils.unreserveNamespace(env, namespaceInfo.namespaceId, id, true);
+    Utils.unreserveNamespace(env, namespaceInfo.namespaceId, tid, true);
 
     env.getEventCoordinator().event("Created namespace %s ", namespaceInfo.namespaceName);
 
     LoggerFactory.getLogger(FinishCreateNamespace.class)
-        .debug("Created table " + namespaceInfo.namespaceId + " " + namespaceInfo.namespaceName);
+        .debug("Created namespace " + namespaceInfo.namespaceId + " " + namespaceInfo.namespaceName);
 
     fLogger.info("{}:\tNamespace {}:{} creation completed",
-        String.format("%016x", id), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
+        String.format("%016x", tid), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
 
+    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
     return null;
   }
 

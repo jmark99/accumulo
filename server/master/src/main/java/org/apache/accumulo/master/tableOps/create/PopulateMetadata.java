@@ -51,10 +51,9 @@ import org.apache.hadoop.io.Text;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 
-class PopulateMetadata extends MasterRepo {
+class PopulateMetadata extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private final TableInfo tableInfo;
 

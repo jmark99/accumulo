@@ -93,9 +93,6 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
   protected final Master master;
   protected static final Logger log = Master.log;
 
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
-  //private FSDataOutputStream stream;
-
   public FateServiceHandler(Master master) {
     this.master = master;
   }

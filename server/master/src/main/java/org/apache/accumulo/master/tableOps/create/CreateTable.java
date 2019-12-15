@@ -35,10 +35,8 @@ import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
 import org.apache.accumulo.master.tableOps.Utils;
 
-public class CreateTable extends MasterRepo {
+public class CreateTable extends MasterRepo implements FateLogger {
   private static final long serialVersionUID = 1L;
-
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private TableInfo tableInfo;
 
@@ -87,8 +85,8 @@ public class CreateTable extends MasterRepo {
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, tableInfo.getNamespaceId(), tid, false);
-    fLogger.info("{}:\tUn-reserving namespace {}", String.format("%016x", tid),
-        tableInfo.getNamespaceId());
+    fLogger.info("{}:\tUndo-ing Create table operation.", String.format("%016x", tid));
+    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
   }
 
 }

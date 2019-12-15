@@ -31,10 +31,9 @@ import org.apache.accumulo.server.security.SecurityOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class SetupPermissions extends MasterRepo {
+class SetupPermissions extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private TableInfo tableInfo;
 

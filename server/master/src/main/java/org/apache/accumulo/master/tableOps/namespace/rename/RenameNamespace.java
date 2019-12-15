@@ -27,14 +27,17 @@ import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter.Mutator;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RenameNamespace extends MasterRepo {
+public class RenameNamespace extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
+
   private NamespaceId namespaceId;
   private String oldName;
   private String newName;
@@ -63,6 +66,8 @@ public class RenameNamespace extends MasterRepo {
       final String tap = master.getZooKeeperRoot() + Constants.ZNAMESPACES + "/" + namespaceId
           + Constants.ZNAMESPACE_NAME;
 
+      fLogger.info("{}:t\tUpdating zookeeper with new namespace info", String.format("%016x", id));
+
       zoo.mutate(tap, null, null, new Mutator() {
         @Override
         public byte[] mutate(byte[] current) throws Exception {
@@ -85,12 +90,15 @@ public class RenameNamespace extends MasterRepo {
     LoggerFactory.getLogger(RenameNamespace.class).debug("Renamed namespace {} {} {}", namespaceId,
         oldName, newName);
 
+    fLogger.info("{}:\tRenamed namespace id:{} from {} to {}", String.format("%016x", id), namespaceId, oldName, newName);
     return null;
   }
 
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, namespaceId, tid, true);
+    fLogger.info("{}:\tUndo-ing Rename namespace (id: {}", String.format("%016x", tid), namespaceId);
+    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
   }
 
 }

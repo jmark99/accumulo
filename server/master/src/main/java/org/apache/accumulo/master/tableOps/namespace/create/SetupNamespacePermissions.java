@@ -30,11 +30,9 @@ import org.apache.accumulo.server.security.SecurityOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class SetupNamespacePermissions extends MasterRepo {
+class SetupNamespacePermissions extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
-
-  private static Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private NamespaceInfo namespaceInfo;
 
@@ -56,7 +54,7 @@ class SetupNamespacePermissions extends MasterRepo {
         throw e;
       }
     }
-    fLogger.info("{}:\tGranted namespace permissions:", fateId);
+    fLogger.info("{}:\tGranting namespace permissions:", fateId);
 
     // setup permissions in zookeeper before table info in zookeeper
     // this way concurrent users will not get a spurious permission denied

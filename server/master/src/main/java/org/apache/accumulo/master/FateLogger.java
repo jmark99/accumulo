@@ -18,4 +18,9 @@
  */
 package org.apache.accumulo.master;
 
-public interface FateLogger {}
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public interface FateLogger {
+    Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
+}

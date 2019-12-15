@@ -34,10 +34,9 @@ import org.apache.accumulo.master.tableOps.TableInfo;
 import org.apache.accumulo.master.tableOps.Utils;
 import org.apache.accumulo.server.util.TablePropUtil;
 
-class PopulateZookeeper extends MasterRepo {
+class PopulateZookeeper extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
 
   private TableInfo tableInfo;
 

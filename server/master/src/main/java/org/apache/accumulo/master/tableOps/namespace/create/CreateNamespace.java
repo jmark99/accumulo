@@ -34,8 +34,6 @@ import org.apache.accumulo.master.tableOps.Utils;
 public class CreateNamespace extends MasterRepo implements FateLogger {
   private static final long serialVersionUID = 1L;
 
-  private static final Logger fLogger = LoggerFactory.getLogger(FateLogger.class);
-
   private NamespaceInfo namespaceInfo;
 
   public CreateNamespace(String user, String namespaceName, Map<String,String> props) {
@@ -69,7 +67,9 @@ public class CreateNamespace extends MasterRepo implements FateLogger {
 
   @Override
   public void undo(long tid, Master env) {
+    fLogger.info("{}:\tUndo-ing CreateNamepace operation", String.format("%016x", tid));
     // nothing to do, the namespace id was allocated!
+    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
   }
 
 }

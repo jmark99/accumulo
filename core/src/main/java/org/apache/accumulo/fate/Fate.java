@@ -170,6 +170,7 @@ public class Fate<T> {
       store.setProperty(tid, EXCEPTION_PROP, e);
       store.setStatus(tid, TStatus.FAILED_IN_PROGRESS);
       log.info("Updated status for Repo with {} to FAILED_IN_PROGRESS", tidStr);
+
     }
 
     private void processFailed(long tid, Repo<T> op) {

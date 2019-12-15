@@ -22,6 +22,7 @@ import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -29,7 +30,7 @@ import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class NamespaceCleanUp extends MasterRepo {
+class NamespaceCleanUp extends MasterRepo implements FateLogger {
 
   private static final Logger log = LoggerFactory.getLogger(NamespaceCleanUp.class);
 
@@ -56,6 +57,7 @@ class NamespaceCleanUp extends MasterRepo {
       log.error("Failed to find namespace in zookeeper", e);
     }
     Tables.clearCache(master.getContext());
+    fLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", String.format("%016x", id), namespaceId);
 
     // remove any permissions associated with this namespace
     try {
@@ -64,10 +66,14 @@ class NamespaceCleanUp extends MasterRepo {
     } catch (ThriftSecurityException e) {
       log.error("{}", e.getMessage(), e);
     }
+    fLogger.info("{}:\tRemoving associated namespace permissions", String.format("%016x", id));
 
     Utils.unreserveNamespace(master, namespaceId, id, true);
 
     log.debug("Deleted namespace " + namespaceId);
+
+    fLogger.info("{}:\tDeleted namespace with id {}", String.format("%016x", id), namespaceId);
+    fLogger.info("{}:END fate tranaction", String.format("%016x", id));
 
     return null;
   }
