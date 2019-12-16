@@ -20,12 +20,13 @@ package org.apache.accumulo.master.tableOps.clone;
 
 import org.apache.accumulo.core.master.state.tables.TableState;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 import org.slf4j.LoggerFactory;
 
-class FinishCloneTable extends MasterRepo {
+class FinishCloneTable extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
   private CloneInfo cloneInfo;
@@ -47,6 +48,8 @@ class FinishCloneTable extends MasterRepo {
     // may never create files.. therefore there is no need to consume namenode space w/ directories
     // that are not used... tablet will create directories as needed
 
+    fLogger.info("{}:\tBringing table with id: {} online",
+        String.format("%016x", tid), cloneInfo.tableId);
     environment.getTableManager().transitionTableState(cloneInfo.tableId, TableState.ONLINE);
 
     Utils.unreserveNamespace(environment, cloneInfo.srcNamespaceId, tid, false);
@@ -60,6 +63,10 @@ class FinishCloneTable extends MasterRepo {
 
     LoggerFactory.getLogger(FinishCloneTable.class).debug("Cloned table " + cloneInfo.srcTableId
         + " " + cloneInfo.tableId + " " + cloneInfo.tableName);
+
+    fLogger.info("{}:\tCloned table with id {} to '{}' (id: {})", String.format("%016x", tid),
+        cloneInfo.srcTableId, cloneInfo.tableName, cloneInfo.tableId);
+    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
 
     return null;
   }

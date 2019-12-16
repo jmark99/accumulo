@@ -196,6 +196,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String splitFile = null;
         String splitDirsFile = null;
         if (splitCount > 0) {
+          fLogger.info("{}:\tWriting splits to {}/{}", fateId, splitDirsFile, splitFile);
           try {
             splitFile = writeSplitsToFile(opid, arguments, splitCount, SPLIT_OFFSET);
             splitDirsFile = createSplitDirsFile(opid);
@@ -204,7 +205,6 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
                 TableOperationExceptionType.OTHER,
                 "Exception thrown while writing splits to file system");
           }
-          fLogger.info("{}:\tWrote splits to {}/{}", fateId, splitDirsFile, splitFile);
         }
         NamespaceId namespaceId;
 
@@ -417,7 +417,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         Text startRow = ByteBufferUtil.toText(arguments.get(1));
         Text endRow = ByteBufferUtil.toText(arguments.get(2));
 
-        fLogger.info("{}: Goal: Perform Table Merge: '{}'", fateId, tableName);
+        fLogger.info("{}: Goal: Perform Table Merge: '{}'; startrow: {}; endrow: {}", fateId,
+            tableName, startRow, endRow);
         fLogger.info("{}: Status:", fateId);
 
         final TableId tableId =

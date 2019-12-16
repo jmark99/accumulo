@@ -25,11 +25,12 @@ import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 
-class CloneZookeeper extends MasterRepo {
+class CloneZookeeper extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -58,7 +59,8 @@ class CloneZookeeper extends MasterRepo {
     Utils.getTableNameLock().lock();
     try {
       // write tableName & tableId to zookeeper
-
+      fLogger.info("{}:\tWriting tableName '{} ({})' to zookeeper", String.format("%016x", tid),
+          cloneInfo.tableName, cloneInfo.tableId);
       Utils.checkTableDoesNotExist(environment.getContext(), cloneInfo.tableName, cloneInfo.tableId,
           TableOperation.CLONE);
 

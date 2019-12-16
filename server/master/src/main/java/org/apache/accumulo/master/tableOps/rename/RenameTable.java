@@ -32,12 +32,13 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.util.Pair;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 import org.slf4j.LoggerFactory;
 
-public class RenameTable extends MasterRepo {
+public class RenameTable extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
   private TableId tableId;
@@ -85,6 +86,7 @@ public class RenameTable extends MasterRepo {
           master.getZooKeeperRoot() + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_NAME;
 
       zoo.mutate(tap, null, null, current -> {
+        fLogger.info("{}:\tUpdating table name in zookeeper", String.format("%016x", tid));
         final String currentName = new String(current, UTF_8);
         if (currentName.equals(newName))
           return null; // assume in this case the operation is running again, so we are done
@@ -105,6 +107,10 @@ public class RenameTable extends MasterRepo {
     LoggerFactory.getLogger(RenameTable.class).debug("Renamed table {} {} {}", tableId,
         oldTableName, newTableName);
 
+    fLogger.info("{}:\tRenamed table {} {} {}", String.format("%016x", tid), tableId,
+        oldTableName, newTableName);
+    fLogger.info("{}: END fate transaction", String.format("%016x",tid));
+
     return null;
   }
 
@@ -112,6 +118,8 @@ public class RenameTable extends MasterRepo {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, true);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
+    fLogger.info("{}:\tUndo-ing Rename Table operation", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", String.format("%016x"), tid);
   }
 
 }

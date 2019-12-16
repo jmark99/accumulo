@@ -66,7 +66,8 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
       final String tap = master.getZooKeeperRoot() + Constants.ZNAMESPACES + "/" + namespaceId
           + Constants.ZNAMESPACE_NAME;
 
-      fLogger.info("{}:t\tUpdating zookeeper with new namespace info", String.format("%016x", id));
+      fLogger.info("{}:\tUpdating zookeeper with new namespace info", String.format("%016x", id));
+      fLogger.info("{}:\ttap: {}", String.format("%016x", id), tap);
 
       zoo.mutate(tap, null, null, new Mutator() {
         @Override
@@ -91,6 +92,7 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
         oldName, newName);
 
     fLogger.info("{}:\tRenamed namespace id:{} from {} to {}", String.format("%016x", id), namespaceId, oldName, newName);
+    fLogger.info("{}:END fate transaction", String.format("%016x", id));
     return null;
   }
 

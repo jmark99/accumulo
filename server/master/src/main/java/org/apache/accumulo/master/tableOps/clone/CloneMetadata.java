@@ -19,12 +19,13 @@
 package org.apache.accumulo.master.tableOps.clone;
 
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.util.MetadataTableUtil;
 import org.slf4j.LoggerFactory;
 
-class CloneMetadata extends MasterRepo {
+class CloneMetadata extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
   private CloneInfo cloneInfo;
@@ -43,6 +44,8 @@ class CloneMetadata extends MasterRepo {
     LoggerFactory.getLogger(CloneMetadata.class)
         .info(String.format("Cloning %s with tableId %s from srcTableId %s", cloneInfo.tableName,
             cloneInfo.tableId, cloneInfo.srcTableId));
+    fLogger.info("{}:\tCloning {} ({}) from source table id: {}",
+        String.format("%016x", tid), cloneInfo.tableName, cloneInfo.tableId, cloneInfo.srcTableId);
     // need to clear out any metadata entries for tableId just in case this
     // died before and is executing again
     MetadataTableUtil.deleteTable(cloneInfo.tableId, false, environment.getContext(),

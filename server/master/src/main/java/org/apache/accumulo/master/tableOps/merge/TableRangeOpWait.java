@@ -21,6 +21,7 @@ package org.apache.accumulo.master.tableOps.merge;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -46,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * Normal operations, like bulk imports, will grab the read lock and prevent merges (writes) while
  * they run. Merge operations will lock out some operations while they run.
  */
-class TableRangeOpWait extends MasterRepo {
+class TableRangeOpWait extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(TableRangeOpWait.class);
 
   private static final long serialVersionUID = 1L;
@@ -73,6 +74,7 @@ class TableRangeOpWait extends MasterRepo {
     master.clearMergeState(tableId);
     Utils.unreserveTable(master, tableId, tid, true);
     Utils.unreserveNamespace(master, namespaceId, tid, false);
+    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
     return null;
   }
 

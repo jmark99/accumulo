@@ -73,7 +73,7 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
     log.debug("Deleted namespace " + namespaceId);
 
     fLogger.info("{}:\tDeleted namespace with id {}", String.format("%016x", id), namespaceId);
-    fLogger.info("{}:END fate tranaction", String.format("%016x", id));
+    fLogger.info("{}:END fate transaction", String.format("%016x", id));
 
     return null;
   }
