@@ -20,12 +20,14 @@ package org.apache.accumulo.master.tableOps.compact.cancel;
 
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 
-class FinishCancelCompaction extends MasterRepo {
+class FinishCancelCompaction extends MasterRepo implements FateLogger {
   private static final long serialVersionUID = 1L;
   private TableId tableId;
   private NamespaceId namespaceId;
@@ -39,6 +41,7 @@ class FinishCancelCompaction extends MasterRepo {
   public Repo<Master> call(long tid, Master environment) {
     Utils.unreserveTable(environment, tableId, tid, false);
     Utils.unreserveNamespace(environment, namespaceId, tid, false);
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

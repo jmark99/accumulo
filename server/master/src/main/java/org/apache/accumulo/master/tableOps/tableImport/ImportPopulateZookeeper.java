@@ -30,8 +30,10 @@ import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -40,7 +42,7 @@ import org.apache.accumulo.server.util.TablePropUtil;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-class ImportPopulateZookeeper extends MasterRepo {
+class ImportPopulateZookeeper extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -77,6 +79,8 @@ class ImportPopulateZookeeper extends MasterRepo {
     Utils.getTableNameLock().lock();
     try {
       // write tableName & tableId to zookeeper
+      fLogger.info("{}:\tAdding TableName {} and ID {} to ZooKeeper", FateTxId.formatTid(tid),
+          tableInfo.tableName, tableInfo.tableId);
       Utils.checkTableDoesNotExist(env.getContext(), tableInfo.tableName, tableInfo.tableId,
           TableOperation.CREATE);
 

@@ -24,6 +24,7 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.master.thrift.BulkImportState;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -33,7 +34,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CleanUpBulkImport extends MasterRepo {
+public class CleanUpBulkImport extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -54,6 +55,8 @@ public class CleanUpBulkImport extends MasterRepo {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     master.updateBulkImportStatus(source, BulkImportState.CLEANUP);
+    fLogger.info("{}:\nUpdating bulk import status to {}", String.format("%016x", tid),
+        BulkImportState.CLEANUP);
     log.debug("removing the bulkDir processing flag file in " + bulk);
     Path bulkDir = new Path(bulk);
     MetadataTableUtil.removeBulkLoadInProgressFlag(master.getContext(),
@@ -69,6 +72,7 @@ public class CleanUpBulkImport extends MasterRepo {
     log.debug("completing bulkDir import transaction " + FateTxId.formatTid(tid));
     ZooArbitrator.cleanup(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
     master.removeBulkImportStatus(source);
+    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
     return null;
   }
 }

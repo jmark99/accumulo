@@ -40,6 +40,7 @@ import org.apache.accumulo.core.master.thrift.BulkImportState;
 import org.apache.accumulo.core.util.SimpleThreadPool;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -72,7 +73,7 @@ import com.google.common.annotations.VisibleForTesting;
  * about the request. To prevent problems like this, an Arbitrator is used. Before starting any new
  * request, the tablet server checks the Arbitrator to see if the request is still valid.
  */
-public class BulkImport extends MasterRepo {
+public class BulkImport extends MasterRepo implements FateLogger {
   public static final String FAILURES_TXT = "failures.txt";
 
   private static final long serialVersionUID = 1L;
@@ -142,6 +143,7 @@ public class BulkImport extends MasterRepo {
 
     ZooArbitrator.start(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
     master.updateBulkImportStatus(sourceDir, BulkImportState.MOVING);
+    fLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid), BulkImportState.MOVING);
     // move the files into the directory
     try {
       String bulkDir = prepareBulkImport(master.getContext(), fs, sourceDir, tableId, tid);
@@ -280,5 +282,7 @@ public class BulkImport extends MasterRepo {
     Utils.unreserveHdfsDirectory(environment, errorDir, tid);
     Utils.getReadLock(environment, tableId, tid).unlock();
     ZooArbitrator.cleanup(environment.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
+    fLogger.info("{}:\tUndo-ing Bulk Import operation", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
   }
 }

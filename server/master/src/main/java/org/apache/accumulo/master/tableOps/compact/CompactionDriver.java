@@ -34,8 +34,10 @@ import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata;
 import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
 import org.apache.accumulo.core.util.MapCounter;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -44,7 +46,7 @@ import org.apache.accumulo.server.master.state.TServerInstance;
 import org.apache.thrift.TException;
 import org.slf4j.LoggerFactory;
 
-class CompactionDriver extends MasterRepo {
+class CompactionDriver extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -146,6 +148,7 @@ class CompactionDriver extends MasterRepo {
     CompactRange.removeIterators(env, tid, tableId);
     Utils.getReadLock(env, tableId, tid).unlock();
     Utils.getReadLock(env, namespaceId, tid).unlock();
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

@@ -51,6 +51,7 @@ import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.SimpleThreadPool;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -62,7 +63,7 @@ import org.apache.htrace.wrappers.TraceExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class LoadFiles extends MasterRepo {
+class LoadFiles extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -103,6 +104,8 @@ class LoadFiles extends MasterRepo {
   @Override
   public Repo<Master> call(final long tid, final Master master) throws Exception {
     master.updateBulkImportStatus(source, BulkImportState.LOADING);
+    fLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid),
+        BulkImportState.LOADING);
     ExecutorService executor = getThreadPool(master);
     final AccumuloConfiguration conf = master.getConfiguration();
     VolumeManager fs = master.getFileSystem();
@@ -111,6 +114,7 @@ class LoadFiles extends MasterRepo {
       files.add(entry);
     }
     log.debug(FateTxId.formatTid(tid) + " importing " + files.size() + " files");
+    fLogger.info("{}:\tImporting {} files", String.format("%016x", tid), files.size());
 
     Path writable = new Path(this.errorDir, ".iswritable");
     if (!fs.createNewFile(writable)) {

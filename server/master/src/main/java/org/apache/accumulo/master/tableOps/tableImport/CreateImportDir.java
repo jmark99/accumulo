@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.ServerConstants;
@@ -31,7 +33,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class CreateImportDir extends MasterRepo {
+class CreateImportDir extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(CreateImportDir.class);
   private static final long serialVersionUID = 1L;
 
@@ -49,20 +51,20 @@ class CreateImportDir extends MasterRepo {
     Path exportDir = new Path(tableInfo.exportDir);
     String[] tableDirs = ServerConstants.getTablesDirs(master.getContext());
 
-    log.info("Looking for matching filesystem for " + exportDir + " from options "
-        + Arrays.toString(tableDirs));
+    fLogger.info("{}:\tLooking for matching filesystem for {} from options {}",
+        FateTxId.formatTid(tid), exportDir, Arrays.toString(tableDirs));
     Path base = master.getFileSystem().matchingFileSystem(exportDir, tableDirs);
     if (base == null) {
       throw new IOException(tableInfo.exportDir + " is not in a volume configured for Accumulo");
     }
-    log.info("Chose base table directory of " + base);
+    fLogger.info("{}:\tChose base table directory of {}", FateTxId.formatTid(tid), base);
     Path directory = new Path(base, tableInfo.tableId.canonical());
 
     Path newBulkDir = new Path(directory, Constants.BULK_PREFIX + namer.getNextName());
 
     tableInfo.importDir = newBulkDir.toString();
 
-    log.info("Using import dir: " + tableInfo.importDir);
+    fLogger.info("{}:\tUsing import dir: {}", FateTxId.formatTid(tid), tableInfo.importDir);
 
     return new MapImportFileNames(tableInfo);
   }

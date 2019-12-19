@@ -29,7 +29,9 @@ import org.apache.accumulo.core.clientImpl.AcceptableThriftTableOperationExcepti
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.file.FileOperations;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -39,7 +41,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class MapImportFileNames extends MasterRepo {
+class MapImportFileNames extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(MapImportFileNames.class);
 
   private static final long serialVersionUID = 1L;
@@ -70,7 +72,7 @@ class MapImportFileNames extends MasterRepo {
 
       for (FileStatus fileStatus : files) {
         String fileName = fileStatus.getPath().getName();
-        log.info("filename " + fileStatus.getPath());
+        fLogger.info("{}:\tfilename {}", FateTxId.formatTid(tid), fileStatus.getPath());
         String[] sa = fileName.split("\\.");
         String extension = "";
         if (sa.length > 1) {

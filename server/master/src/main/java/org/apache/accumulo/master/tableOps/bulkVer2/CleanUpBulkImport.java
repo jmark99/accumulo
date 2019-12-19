@@ -25,6 +25,7 @@ import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.master.state.tables.TableState;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -34,7 +35,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CleanUpBulkImport extends MasterRepo {
+public class CleanUpBulkImport extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -48,13 +49,15 @@ public class CleanUpBulkImport extends MasterRepo {
 
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
-    log.debug("removing the bulkDir processing flag file in " + info.bulkDir);
+    fLogger.info("{}:\tRemoving bulkDir processing flag file in {}", String.format("%016x", tid),
+        info.bulkDir);
     Path bulkDir = new Path(info.bulkDir);
     MetadataTableUtil.removeBulkLoadInProgressFlag(master.getContext(),
         "/" + bulkDir.getParent().getName() + "/" + bulkDir.getName());
     MetadataTableUtil.addDeleteEntry(master.getContext(), info.tableId, bulkDir.toString());
     if (info.tableState == TableState.ONLINE) {
-      log.debug("removing the metadata table markers for loaded files");
+      fLogger.info("{}:\tRemoving metadata table markers for loaded files",
+          String.format("%016x", tid));
       AccumuloClient client = master.getContext();
       MetadataTableUtil.removeBulkLoadEntries(client, info.tableId, tid);
     }
@@ -70,7 +73,7 @@ public class CleanUpBulkImport extends MasterRepo {
       log.debug("Failed to delete renames and/or loadmap", ioe);
     }
 
-    log.debug("completing bulkDir import transaction " + FateTxId.formatTid(tid));
+    fLogger.info("{}:\tCompleting bulkDir import transaction", FateTxId.formatTid(tid));
     if (info.tableState == TableState.ONLINE) {
       ZooArbitrator.cleanup(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
     }

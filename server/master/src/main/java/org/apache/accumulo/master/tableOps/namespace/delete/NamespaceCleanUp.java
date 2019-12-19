@@ -21,6 +21,7 @@ package org.apache.accumulo.master.tableOps.namespace.delete;
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -48,7 +49,7 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
   }
 
   @Override
-  public Repo<Master> call(long id, Master master) {
+  public Repo<Master> call(long tid, Master master) {
 
     // remove from zookeeper
     try {
@@ -57,7 +58,7 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
       log.error("Failed to find namespace in zookeeper", e);
     }
     Tables.clearCache(master.getContext());
-    fLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", String.format("%016x", id), namespaceId);
+    fLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", FateTxId.formatTid(tid), namespaceId);
 
     // remove any permissions associated with this namespace
     try {
@@ -66,14 +67,14 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
     } catch (ThriftSecurityException e) {
       log.error("{}", e.getMessage(), e);
     }
-    fLogger.info("{}:\tRemoving associated namespace permissions", String.format("%016x", id));
+    fLogger.info("{}:\tRemoving associated namespace permissions", FateTxId.formatTid(tid));
 
-    Utils.unreserveNamespace(master, namespaceId, id, true);
+    Utils.unreserveNamespace(master, namespaceId, tid, true);
 
     log.debug("Deleted namespace " + namespaceId);
 
-    fLogger.info("{}:\tDeleted namespace with id {}", String.format("%016x", id), namespaceId);
-    fLogger.info("{}:END fate transaction", String.format("%016x", id));
+    fLogger.info("{}:\tDeleted namespace with id {}", FateTxId.formatTid(tid), namespaceId);
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
 
     return null;
   }

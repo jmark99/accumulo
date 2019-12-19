@@ -18,6 +18,7 @@
  */
 package org.apache.accumulo.master.tableOps.namespace.create;
 
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.FateLogger;
@@ -53,9 +54,9 @@ class FinishCreateNamespace extends MasterRepo implements FateLogger {
         .debug("Created namespace " + namespaceInfo.namespaceId + " " + namespaceInfo.namespaceName);
 
     fLogger.info("{}:\tNamespace {}:{} creation completed",
-        String.format("%016x", tid), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
+        FateTxId.formatTid(tid), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
 
-    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
+    fLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

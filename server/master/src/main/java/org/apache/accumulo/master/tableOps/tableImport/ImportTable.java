@@ -32,7 +32,9 @@ import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-public class ImportTable extends MasterRepo {
+public class ImportTable extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(ImportTable.class);
 
   private static final long serialVersionUID = 1L;
@@ -79,6 +81,7 @@ public class ImportTable extends MasterRepo {
     Utils.getIdLock().lock();
     try {
       tableInfo.tableId = Utils.getNextId(tableInfo.tableName, env.getContext(), TableId::of);
+      fLogger.info("{}:\tReserving Table ID", FateTxId.formatTid(tid));
       return new ImportSetupPermissions(tableInfo);
     } finally {
       Utils.getIdLock().unlock();
@@ -131,5 +134,7 @@ public class ImportTable extends MasterRepo {
   public void undo(long tid, Master env) throws Exception {
     Utils.unreserveHdfsDirectory(env, new Path(tableInfo.exportDir).toString(), tid);
     Utils.unreserveNamespace(env, tableInfo.namespaceId, tid, false);
+    fLogger.info("{}:\tUndo-ing TABLE_IMPORT operation", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
   }
 }

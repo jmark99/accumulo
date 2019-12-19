@@ -26,6 +26,7 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.util.TextUtil;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -71,14 +72,14 @@ public class TableRangeOp extends MasterRepo implements FateLogger {
       log.warn("Attempt to merge tablets for {} does nothing. It is not splittable.",
           RootTable.NAME);
       fLogger.info("{}:\tAttempting to merge tablets for {} does nothing. It is not splittable.",
-          String.format("%016x", tid), RootTable.NAME);
+          FateTxId.formatTid(tid), RootTable.NAME);
     }
 
     Text start = startRow.length == 0 ? null : new Text(startRow);
     Text end = endRow.length == 0 ? null : new Text(endRow);
 
-    fLogger.info("{}:\tSetting start row to {}", String.format("%016x", tid), start);
-    fLogger.info("{}:\tSetting end row to {}", String.format("%016x", tid), end);
+    fLogger.info("{}:\tSetting start row to {}", FateTxId.formatTid(tid), start);
+    fLogger.info("{}:\tSetting end row to {}", FateTxId.formatTid(tid), end);
 
     if (start != null && end != null)
       if (start.compareTo(end) >= 0)
@@ -107,8 +108,8 @@ public class TableRangeOp extends MasterRepo implements FateLogger {
     env.clearMergeState(tableId);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
     Utils.unreserveTable(env, tableId, tid, true);
-    fLogger.info("{}:\tUndo-ing {} operation", String.format("%016x", tid), op.name());
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    fLogger.info("{}:\tUndo-ing {} operation", FateTxId.formatTid(tid), op.name());
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 
 }

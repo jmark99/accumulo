@@ -19,6 +19,7 @@
 package org.apache.accumulo.master.tableOps.clone;
 
 import org.apache.accumulo.core.master.state.tables.TableState;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -49,7 +50,7 @@ class FinishCloneTable extends MasterRepo implements FateLogger {
     // that are not used... tablet will create directories as needed
 
     fLogger.info("{}:\tBringing table with id: {} online",
-        String.format("%016x", tid), cloneInfo.tableId);
+        FateTxId.formatTid(tid), cloneInfo.tableId);
     environment.getTableManager().transitionTableState(cloneInfo.tableId, TableState.ONLINE);
 
     Utils.unreserveNamespace(environment, cloneInfo.srcNamespaceId, tid, false);
@@ -64,9 +65,9 @@ class FinishCloneTable extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(FinishCloneTable.class).debug("Cloned table " + cloneInfo.srcTableId
         + " " + cloneInfo.tableId + " " + cloneInfo.tableName);
 
-    fLogger.info("{}:\tCloned table with id {} to '{}' (id: {})", String.format("%016x", tid),
+    fLogger.info("{}:\tCloned table with id {} to '{}' (id: {})", FateTxId.formatTid(tid),
         cloneInfo.srcTableId, cloneInfo.tableName, cloneInfo.tableId);
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
 
     return null;
   }

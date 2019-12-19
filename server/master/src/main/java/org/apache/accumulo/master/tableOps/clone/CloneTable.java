@@ -24,6 +24,7 @@ import java.util.Set;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -62,7 +63,7 @@ public class CloneTable extends MasterRepo implements FateLogger {
     try {
       cloneInfo.tableId =
           Utils.getNextId(cloneInfo.tableName, environment.getContext(), TableId::of);
-      fLogger.info("{}:\tObtaining new id '{}' for clone", String.format("%016x", tid),
+      fLogger.info("{}:\tObtaining new id '{}' for clone", FateTxId.formatTid(tid),
           cloneInfo.tableId);
       return new ClonePermissions(cloneInfo);
     } finally {
@@ -74,8 +75,8 @@ public class CloneTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master environment) {
     Utils.unreserveNamespace(environment, cloneInfo.srcNamespaceId, tid, false);
     Utils.unreserveTable(environment, cloneInfo.srcTableId, tid, false);
-    fLogger.info("{}:\tUndo-ing Clone Table operation", String.format("%016x", tid));
-    fLogger.info("{}:END fate transaction", String.format("%016x"), tid);
+    fLogger.info("{}:\tUndo-ing Clone Table operation", FateTxId.formatTid(tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid), tid);
   }
 
 }

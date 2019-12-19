@@ -24,6 +24,7 @@ import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter.Mutator;
@@ -54,7 +55,7 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
   }
 
   @Override
-  public Repo<Master> call(long id, Master master) throws Exception {
+  public Repo<Master> call(long tid, Master master) throws Exception {
 
     ZooReaderWriter zoo = master.getContext().getZooReaderWriter();
 
@@ -66,8 +67,8 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
       final String tap = master.getZooKeeperRoot() + Constants.ZNAMESPACES + "/" + namespaceId
           + Constants.ZNAMESPACE_NAME;
 
-      fLogger.info("{}:\tUpdating zookeeper with new namespace info", String.format("%016x", id));
-      fLogger.info("{}:\ttap: {}", String.format("%016x", id), tap);
+      fLogger.info("{}:\tUpdating zookeeper with new namespace info", FateTxId.formatTid(tid));
+      fLogger.info("{}:\ttap: {}", FateTxId.formatTid(tid), tap);
 
       zoo.mutate(tap, null, null, new Mutator() {
         @Override
@@ -85,22 +86,23 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
       Tables.clearCache(master.getContext());
     } finally {
       Utils.getTableNameLock().unlock();
-      Utils.unreserveNamespace(master, namespaceId, id, true);
+      Utils.unreserveNamespace(master, namespaceId, tid, true);
     }
 
     LoggerFactory.getLogger(RenameNamespace.class).debug("Renamed namespace {} {} {}", namespaceId,
         oldName, newName);
 
-    fLogger.info("{}:\tRenamed namespace id:{} from {} to {}", String.format("%016x", id), namespaceId, oldName, newName);
-    fLogger.info("{}:END fate transaction", String.format("%016x", id));
+    fLogger.info("{}:\tRenamed namespace id:{} from {} to {}", String.format("%016x", tid),
+        namespaceId, oldName, newName);
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, namespaceId, tid, true);
-    fLogger.info("{}:\tUndo-ing Rename namespace (id: {}", String.format("%016x", tid), namespaceId);
-    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
+    fLogger.info("{}:\tUndo-ing Rename namespace (id: {}", FateTxId.formatTid(tid), namespaceId);
+    fLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
   }
 
 }

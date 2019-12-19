@@ -44,7 +44,9 @@ import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.DataFileColumnFamily;
 import org.apache.accumulo.core.util.FastFormat;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -54,7 +56,7 @@ import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class PopulateMetadataTable extends MasterRepo {
+class PopulateMetadataTable extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(PopulateMetadataTable.class);
 
   private static final long serialVersionUID = 1L;
@@ -91,6 +93,7 @@ class PopulateMetadataTable extends MasterRepo {
     BatchWriter mbw = null;
     ZipInputStream zis = null;
 
+    fLogger.info("{}:\tPopulate metadata table", FateTxId.formatTid(tid));
     try {
       VolumeManager fs = master.getFileSystem();
 
@@ -100,7 +103,7 @@ class PopulateMetadataTable extends MasterRepo {
 
       Map<String,String> fileNameMappings = readMappingFile(fs, tableInfo);
 
-      log.info("importDir is " + tableInfo.importDir);
+      fLogger.info("{}:\timportDir is {}", FateTxId.formatTid(tid), tableInfo.importDir);
 
       // This is a directory already prefixed with proper volume information e.g.
       // hdfs://localhost:8020/path/to/accumulo/tables/...

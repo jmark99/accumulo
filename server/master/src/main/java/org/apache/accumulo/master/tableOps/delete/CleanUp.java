@@ -40,7 +40,9 @@ import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.DataFileColumnFamily;
 import org.apache.accumulo.core.security.Authorizations;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -56,7 +58,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class CleanUp extends MasterRepo {
+class CleanUp extends MasterRepo implements FateLogger {
 
   private static final Logger log = LoggerFactory.getLogger(CleanUp.class);
 
@@ -200,6 +202,7 @@ class CleanUp extends MasterRepo {
     }
 
     // remove any permissions associated with this table
+    fLogger.info("{}:\tRemoving permissions associated with table", FateTxId.formatTid(tid));
     try {
       AuditedSecurityOperation.getInstance(master.getContext())
           .deleteTable(master.getContext().rpcCreds(), tableId, namespaceId);
@@ -212,6 +215,7 @@ class CleanUp extends MasterRepo {
 
     LoggerFactory.getLogger(CleanUp.class).debug("Deleted table " + tableId);
 
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

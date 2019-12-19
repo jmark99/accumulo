@@ -20,6 +20,7 @@ package org.apache.accumulo.master.tableOps.merge;
 
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -74,7 +75,7 @@ class TableRangeOpWait extends MasterRepo implements FateLogger {
     master.clearMergeState(tableId);
     Utils.unreserveTable(master, tableId, tid, true);
     Utils.unreserveNamespace(master, namespaceId, tid, false);
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

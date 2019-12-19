@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -56,7 +57,7 @@ class ChooseDir extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     if (tableInfo.getInitialSplitSize() > 0) {
-      fLogger.info("{}:\tCreating split directories", String.format("%016x", tid));
+      fLogger.info("{}:\tCreating split directories", FateTxId.formatTid(tid));
       createTableDirectoriesInfo(master);
     }
     return new PopulateMetadata(tableInfo);

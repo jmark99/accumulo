@@ -42,6 +42,7 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.Bu
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.fs.FileRef;
@@ -54,7 +55,7 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class CopyFailed extends MasterRepo {
+class CopyFailed extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(CopyFailed.class);
 
   private static final long serialVersionUID = 1L;
@@ -94,6 +95,8 @@ class CopyFailed extends MasterRepo {
   public Repo<Master> call(long tid, Master master) throws Exception {
     // This needs to execute after the arbiter is stopped
     master.updateBulkImportStatus(source, BulkImportState.COPY_FILES);
+    fLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid),
+        BulkImportState.COPY_FILES);
     VolumeManager fs = master.getFileSystem();
 
     if (!fs.exists(new Path(error, BulkImport.FAILURES_TXT)))
@@ -136,6 +139,7 @@ class CopyFailed extends MasterRepo {
     }
 
     // move failed files that were not loaded
+    fLogger.info("{}:\tMoving failed file that were not loaded ", String.format("%016x", tid));
     for (String failure : failures.values()) {
       Path orig = new Path(failure);
       Path dest = new Path(error, orig.getName());

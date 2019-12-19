@@ -21,12 +21,13 @@ package org.apache.accumulo.master.tableOps.tableExport;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 import org.apache.hadoop.fs.Path;
 
-public class ExportTable extends MasterRepo {
+public class ExportTable extends MasterRepo implements FateLogger {
   private static final long serialVersionUID = 1L;
 
   private final ExportInfo tableInfo;
@@ -52,6 +53,8 @@ public class ExportTable extends MasterRepo {
   @Override
   public void undo(long tid, Master env) throws Exception {
     Utils.unreserveHdfsDirectory(env, new Path(tableInfo.exportDir).toString(), tid);
+    fLogger.info("{}:\tUndo-ing TABLE_EXPORT operation", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
   }
 
   public static final int VERSION = 1;

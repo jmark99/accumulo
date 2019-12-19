@@ -37,6 +37,7 @@ import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.ServerColumnFamily;
 import org.apache.accumulo.core.metadata.schema.MetadataTime;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooLock;
 import org.apache.accumulo.master.FateLogger;
@@ -83,7 +84,7 @@ class PopulateMetadata extends MasterRepo implements FateLogger {
             splitDirMap, tableInfo.getTimeType(), environment.getMasterLock(), bw);
       }
     }
-    fLogger.info("{}:\tPopulated metadata table", String.format("%016x", tid));
+    fLogger.info("{}:\tPopulated metadata table", FateTxId.formatTid(tid));
     return new FinishCreateTable(tableInfo);
   }
 

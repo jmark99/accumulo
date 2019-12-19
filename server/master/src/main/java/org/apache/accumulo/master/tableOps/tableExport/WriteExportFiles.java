@@ -54,7 +54,9 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.DataFileColumnFamily;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.LogColumnFamily;
 import org.apache.accumulo.core.security.Authorizations;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -65,7 +67,7 @@ import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 
-class WriteExportFiles extends MasterRepo {
+class WriteExportFiles extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
   private final ExportInfo tableInfo;
@@ -87,7 +89,6 @@ class WriteExportFiles extends MasterRepo {
 
   @Override
   public long isReady(long tid, Master master) throws Exception {
-
     long reserved = Utils.reserveNamespace(master, tableInfo.namespaceID, tid, false, true,
         TableOperation.EXPORT)
         + Utils.reserveTable(master, tableInfo.tableID, tid, false, true, TableOperation.EXPORT);
@@ -128,7 +129,7 @@ class WriteExportFiles extends MasterRepo {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     try {
-      exportTable(master.getFileSystem(), master.getContext(), tableInfo.tableName,
+      exportTable(tid, master.getFileSystem(), master.getContext(), tableInfo.tableName,
           tableInfo.tableID, tableInfo.exportDir);
     } catch (IOException ioe) {
       throw new AcceptableThriftTableOperationException(tableInfo.tableID.canonical(),
@@ -138,6 +139,7 @@ class WriteExportFiles extends MasterRepo {
     Utils.unreserveNamespace(master, tableInfo.namespaceID, tid, false);
     Utils.unreserveTable(master, tableInfo.tableID, tid, false);
     Utils.unreserveHdfsDirectory(master, new Path(tableInfo.exportDir).toString(), tid);
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 
@@ -147,9 +149,11 @@ class WriteExportFiles extends MasterRepo {
     Utils.unreserveTable(env, tableInfo.tableID, tid, false);
   }
 
-  public static void exportTable(VolumeManager fs, ServerContext context, String tableName,
-      TableId tableID, String exportDir) throws Exception {
+  public static void exportTable(final long fateId, VolumeManager fs, ServerContext context,
+      String tableName, TableId tableID, String exportDir) throws Exception {
 
+    fLogger.info("{}:\tExporting table {} {} to directory {}", String.format("%016x", fateId),
+        tableName, tableID, exportDir);
     fs.mkdirs(new Path(exportDir));
     Path exportMetaFilePath = fs.getVolumeByPath(new Path(exportDir)).getFileSystem()
         .makeQualified(new Path(exportDir, Constants.EXPORT_FILE));

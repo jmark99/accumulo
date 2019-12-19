@@ -32,9 +32,11 @@ import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter.Mutator;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -46,7 +48,7 @@ import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CompactRange extends MasterRepo {
+public class CompactRange extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(CompactRange.class);
 
   private static final long serialVersionUID = 1L;
@@ -100,6 +102,7 @@ public class CompactRange extends MasterRepo {
     ZooReaderWriter zoo = env.getContext().getZooReaderWriter();
     byte[] cid;
     try {
+      fLogger.info("{}:\tMutating table", FateTxId.formatTid(tid));
       cid = zoo.mutate(zTablePath, null, null, new Mutator() {
         @Override
         public byte[] mutate(byte[] currentValue) throws Exception {
@@ -182,6 +185,8 @@ public class CompactRange extends MasterRepo {
     } finally {
       Utils.unreserveNamespace(env, namespaceId, tid, false);
       Utils.unreserveTable(env, tableId, tid, false);
+      fLogger.info("{}:\tUndo-ing TABLE_COMPACT operation", FateTxId.formatTid(tid));
+      fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     }
   }
 

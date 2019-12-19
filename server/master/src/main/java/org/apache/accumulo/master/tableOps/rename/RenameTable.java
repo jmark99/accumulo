@@ -30,6 +30,7 @@ import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.util.Pair;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.master.FateLogger;
@@ -86,7 +87,7 @@ public class RenameTable extends MasterRepo implements FateLogger {
           master.getZooKeeperRoot() + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_NAME;
 
       zoo.mutate(tap, null, null, current -> {
-        fLogger.info("{}:\tUpdating table name in zookeeper", String.format("%016x", tid));
+        fLogger.info("{}:\tUpdating table name in zookeeper", FateTxId.formatTid(tid));
         final String currentName = new String(current, UTF_8);
         if (currentName.equals(newName))
           return null; // assume in this case the operation is running again, so we are done
@@ -107,9 +108,9 @@ public class RenameTable extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(RenameTable.class).debug("Renamed table {} {} {}", tableId,
         oldTableName, newTableName);
 
-    fLogger.info("{}:\tRenamed table {} {} {}", String.format("%016x", tid), tableId,
+    fLogger.info("{}:\tRenamed table {} {} {}", FateTxId.formatTid(tid), tableId,
         oldTableName, newTableName);
-    fLogger.info("{}: END fate transaction", String.format("%016x",tid));
+    fLogger.info("{}: END fate transaction", FateTxId.formatTid(tid));
 
     return null;
   }
@@ -118,8 +119,8 @@ public class RenameTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, true);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
-    fLogger.info("{}:\tUndo-ing Rename Table operation", String.format("%016x", tid));
-    fLogger.info("{}:END fate transaction", String.format("%016x"), tid);
+    fLogger.info("{}:\tUndo-ing Rename Table operation", FateTxId.formatTid(tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 
 }

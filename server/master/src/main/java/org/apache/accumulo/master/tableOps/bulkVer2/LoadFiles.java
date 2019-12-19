@@ -59,6 +59,7 @@ import org.apache.accumulo.core.util.PeekingIterator;
 import org.apache.accumulo.core.util.TextUtil;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -74,7 +75,7 @@ import com.google.common.base.Preconditions;
  * Make asynchronous load calls to each overlapping Tablet. This RepO does its work on the isReady
  * and will return a linear sleep value based on the largest number of Tablets on a TabletServer.
  */
-class LoadFiles extends MasterRepo {
+class LoadFiles extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -163,6 +164,9 @@ class LoadFiles extends MasterRepo {
             log.trace("{} asking {} to bulk import {} files for {} tablets", fmtTid, server,
                 tabletFiles.values().stream().mapToInt(Map::size).sum(), tabletFiles.size());
           }
+          fLogger.info("{}:\tAsking {} to bulk import {} files for {} tablets", String.format(
+              "%016x", tid), server, tabletFiles.values().stream().mapToInt(Map::size).sum(),
+              tabletFiles.size());
 
           TabletClientService.Client client = null;
           try {

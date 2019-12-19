@@ -22,6 +22,7 @@ import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.master.state.tables.TableState;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -62,9 +63,9 @@ public class ChangeTableState extends MasterRepo implements FateLogger {
     Utils.unreserveTable(env, tableId, tid, true);
     LoggerFactory.getLogger(ChangeTableState.class).debug("Changed table state {} {}", tableId, ts);
     env.getEventCoordinator().event("Set table state of %s to %s", tableId, ts);
-    fLogger.info("{}:\tSetting table state of {} to {}", String.format("%016x", tid), tableId, ts);
+    fLogger.info("{}:\tSetting table state of {} to {}", FateTxId.formatTid(tid), tableId, ts);
 
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 
@@ -72,7 +73,7 @@ public class ChangeTableState extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, namespaceId, tid, false);
     Utils.unreserveTable(env, tableId, tid, true);
-    fLogger.info("{}:\tUndo-ing {} operation", String.format("%016x", tid), top.name());
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    fLogger.info("{}:\tUndo-ing {} operation", FateTxId.formatTid(tid), top.name());
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 }

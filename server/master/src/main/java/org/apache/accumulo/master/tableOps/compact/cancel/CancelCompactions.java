@@ -24,14 +24,16 @@ import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter.Mutator;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 
-public class CancelCompactions extends MasterRepo {
+public class CancelCompactions extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
   private TableId tableId;
@@ -63,6 +65,8 @@ public class CancelCompactions extends MasterRepo {
     String[] tokens = cvs.split(",");
     final long flushID = Long.parseLong(tokens[0]);
 
+    fLogger.info("{}:\tUpdating zookeeper: {} {} {}", FateTxId.formatTid(tid), cvs, tokens[0],
+        flushID);
     zoo.mutate(zCancelID, null, null, new Mutator() {
       @Override
       public byte[] mutate(byte[] currentValue) {
@@ -82,5 +86,7 @@ public class CancelCompactions extends MasterRepo {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, false);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
+    fLogger.info("{}:\tUndo-ing CANCEL_COMPACTION operation", FateTxId.formatTid(tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 }

@@ -19,14 +19,16 @@
 package org.apache.accumulo.master.tableOps.tableImport;
 
 import org.apache.accumulo.core.master.state.tables.TableState;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.LoggerFactory;
 
-class FinishImportTable extends MasterRepo {
+class FinishImportTable extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -58,6 +60,9 @@ class FinishImportTable extends MasterRepo {
     LoggerFactory.getLogger(FinishImportTable.class)
         .debug("Imported table " + tableInfo.tableId + " " + tableInfo.tableName);
 
+    fLogger.info("{}:\tImported table {} {}", FateTxId.formatTid(tid), tableInfo.tableId,
+        tableInfo.tableName);
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

@@ -20,6 +20,7 @@ package org.apache.accumulo.master.tableOps.create;
 
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.security.TablePermission;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -46,7 +47,7 @@ class SetupPermissions extends MasterRepo implements FateLogger {
     // give all table permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
     if (!tableInfo.getUser().equals(env.getContext().getCredentials().getPrincipal())) {
-      fLogger.info("{}:\tSetting table permissions", String.format("%016x", tid));
+      fLogger.info("{}:\tSetting table permissions", FateTxId.formatTid(tid));
       for (TablePermission permission : TablePermission.values()) {
         try {
           security.grantTablePermission(env.getContext().rpcCreds(), tableInfo.getUser(),
@@ -56,7 +57,7 @@ class SetupPermissions extends MasterRepo implements FateLogger {
           throw e;
         }
       }
-      fLogger.info("{}:\tTable permissions set", String.format("%016x", tid));
+      fLogger.info("{}:\tTable permissions set", FateTxId.formatTid(tid));
     }
 
     // setup permissions in zookeeper before table info in zookeeper

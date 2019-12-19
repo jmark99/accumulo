@@ -36,6 +36,7 @@ import org.apache.accumulo.core.master.state.tables.TableState;
 import org.apache.accumulo.core.util.SimpleThreadPool;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -60,7 +61,7 @@ import org.slf4j.LoggerFactory;
  * about the request. To prevent problems like this, an Arbitrator is used. Before starting any new
  * request, the tablet server checks the Arbitrator to see if the request is still valid.
  */
-class BulkImportMove extends MasterRepo {
+class BulkImportMove extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -91,6 +92,9 @@ class BulkImportMove extends MasterRepo {
       Map<String,String> oldToNewNameMap =
           BulkSerialize.readRenameMap(bulkDir.toString(), p -> fs.open(p));
       moveFiles(tid, sourceDir, bulkDir, master, fs, oldToNewNameMap);
+
+      fLogger.info("{}:\tMoving files from {} to {}", String.format("%016x", tid),
+          sourceDir.getName(), bulkDir.getName());
 
       return new LoadFiles(bulkInfo);
     } catch (Exception ex) {

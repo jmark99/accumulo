@@ -20,11 +20,12 @@ package org.apache.accumulo.master.tableOps.bulkVer2;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.zookeeper.TransactionWatcher.ZooArbitrator;
 
-public class CompleteBulkImport extends MasterRepo {
+public class CompleteBulkImport extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -37,6 +38,7 @@ public class CompleteBulkImport extends MasterRepo {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     ZooArbitrator.stop(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
+    fLogger.info("{}:\tStopping Arbitrator", String.format("%016x", tid));
     return new CleanUpBulkImport(info);
   }
 }

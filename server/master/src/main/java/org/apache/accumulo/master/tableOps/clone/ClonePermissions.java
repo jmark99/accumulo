@@ -24,6 +24,7 @@ import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.security.TablePermission;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -49,7 +50,7 @@ class ClonePermissions extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master environment) throws Exception {
     // give all table permissions to the creator
-    fLogger.info("{}:\tGranting table permissions to creator", String.format("%016x", tid));
+    fLogger.info("{}:\tGranting table permissions to creator", FateTxId.formatTid(tid));
     for (TablePermission permission : TablePermission.values()) {
       try {
         AuditedSecurityOperation.getInstance(environment.getContext()).grantTablePermission(

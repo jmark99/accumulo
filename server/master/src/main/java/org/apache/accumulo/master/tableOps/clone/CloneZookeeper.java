@@ -23,6 +23,7 @@ import org.apache.accumulo.core.clientImpl.ClientContext;
 import org.apache.accumulo.core.clientImpl.Namespaces;
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.master.FateLogger;
@@ -59,7 +60,7 @@ class CloneZookeeper extends MasterRepo implements FateLogger {
     Utils.getTableNameLock().lock();
     try {
       // write tableName & tableId to zookeeper
-      fLogger.info("{}:\tWriting tableName '{} ({})' to zookeeper", String.format("%016x", tid),
+      fLogger.info("{}:\tWriting tableName '{} ({})' to zookeeper", FateTxId.formatTid(tid),
           cloneInfo.tableName, cloneInfo.tableId);
       Utils.checkTableDoesNotExist(environment.getContext(), cloneInfo.tableName, cloneInfo.tableId,
           TableOperation.CLONE);

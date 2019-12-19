@@ -20,14 +20,16 @@ package org.apache.accumulo.master.tableOps.tableImport;
 
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.security.TablePermission;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SecurityOperation;
 import org.slf4j.LoggerFactory;
 
-class ImportSetupPermissions extends MasterRepo {
+class ImportSetupPermissions extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -46,6 +48,7 @@ class ImportSetupPermissions extends MasterRepo {
   public Repo<Master> call(long tid, Master env) throws Exception {
     // give all table permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
+    fLogger.info("{}:\tSetting table permissions", FateTxId.formatTid(tid));
     for (TablePermission permission : TablePermission.values()) {
       try {
         security.grantTablePermission(env.getContext().rpcCreds(), tableInfo.user,

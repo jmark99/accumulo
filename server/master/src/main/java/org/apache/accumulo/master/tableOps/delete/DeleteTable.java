@@ -22,12 +22,14 @@ import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.master.state.tables.TableState;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
 
-public class DeleteTable extends MasterRepo {
+public class DeleteTable extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -48,6 +50,7 @@ public class DeleteTable extends MasterRepo {
   @Override
   public Repo<Master> call(long tid, Master env) {
     env.getTableManager().transitionTableState(tableId, TableState.DELETING);
+    fLogger.info("{}:\tSetting table state to {}", FateTxId.formatTid(tid), TableState.DELETING);
     env.getEventCoordinator().event("deleting table %s ", tableId);
     return new CleanUp(tableId, namespaceId);
   }
@@ -56,5 +59,7 @@ public class DeleteTable extends MasterRepo {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, true);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
+    fLogger.info("{}:\tUndo-ing delete namespace operation", FateTxId.formatTid(tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 }

@@ -43,6 +43,7 @@ import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata;
 import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
@@ -70,7 +71,7 @@ import com.google.common.collect.Iterators;
  *
  * @since 2.0.0
  */
-public class PrepBulkImport extends MasterRepo {
+public class PrepBulkImport extends MasterRepo implements FateLogger {
 
   private static final long serialVersionUID = 1L;
 
@@ -174,6 +175,8 @@ public class PrepBulkImport extends MasterRepo {
   @Override
   public Repo<Master> call(final long tid, final Master master) throws Exception {
     // now that table lock is acquired check that all splits in load mapping exists in table
+    fLogger.info("{}:\tChecking that all splits in load mapping exist in table", String.format(
+        "%016x", tid));
     checkForMerge(master);
 
     bulkInfo.tableState = Tables.getTableState(master.getContext(), bulkInfo.tableId);
@@ -185,6 +188,11 @@ public class PrepBulkImport extends MasterRepo {
 
     Path bulkDir = createNewBulkDir(master.getContext(), fs, bulkInfo.tableId);
     Path mappingFile = new Path(sourceDir, Constants.BULK_LOAD_MAPPING);
+
+    fLogger.info("{}:\tSourceDir: {}/{}; bulkDir: {}/{}; mappingFile: {}/{}",
+        String.format("%016x", tid), sourceDir.getParent().getName(), sourceDir.getName(),
+        bulkDir.getParent().getName(), bulkDir.getName(),
+        mappingFile.getParent().getName(),  mappingFile.getName());
 
     Map<String,String> oldToNewNameMap = new HashMap<>();
 
@@ -236,5 +244,7 @@ public class PrepBulkImport extends MasterRepo {
     Utils.getReadLock(environment, bulkInfo.tableId, tid).unlock();
     TransactionWatcher.ZooArbitrator.cleanup(environment.getContext(),
         Constants.BULK_ARBITRATOR_TYPE, tid);
+    fLogger.info("{}:\tUndo-ing delete namespace operation", String.format("%016x", tid));
+    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
   }
 }

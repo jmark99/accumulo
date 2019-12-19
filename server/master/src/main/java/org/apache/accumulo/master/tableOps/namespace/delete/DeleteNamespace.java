@@ -20,6 +20,7 @@ package org.apache.accumulo.master.tableOps.namespace.delete;
 
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -37,8 +38,8 @@ public class DeleteNamespace extends MasterRepo implements FateLogger {
   }
 
   @Override
-  public long isReady(long id, Master environment) throws Exception {
-    return Utils.reserveNamespace(environment, namespaceId, id, true, true, TableOperation.DELETE);
+  public long isReady(long tid, Master environment) throws Exception {
+    return Utils.reserveNamespace(environment, namespaceId, tid, true, true, TableOperation.DELETE);
   }
 
   @Override
@@ -48,10 +49,10 @@ public class DeleteNamespace extends MasterRepo implements FateLogger {
   }
 
   @Override
-  public void undo(long id, Master environment) {
-    Utils.unreserveNamespace(environment, namespaceId, id, true);
-    fLogger.info("{}:\tUndo-ing delete namespace operation", String.format("%016x", id));
-    fLogger.info("{}:END fate transaction", String.format("%016x"), id);
+  public void undo(long tid, Master environment) {
+    Utils.unreserveNamespace(environment, namespaceId, tid, true);
+    fLogger.info("{}:\tUndo-ing delete namespace operation", FateTxId.formatTid(tid));
+    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid), tid);
   }
 
 }

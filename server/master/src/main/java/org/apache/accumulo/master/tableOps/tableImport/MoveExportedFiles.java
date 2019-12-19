@@ -24,7 +24,9 @@ import java.util.Map;
 import org.apache.accumulo.core.clientImpl.AcceptableThriftTableOperationException;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -33,7 +35,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class MoveExportedFiles extends MasterRepo {
+class MoveExportedFiles extends MasterRepo implements FateLogger {
   private static final Logger log = LoggerFactory.getLogger(MoveExportedFiles.class);
 
   private static final long serialVersionUID = 1L;
@@ -46,6 +48,8 @@ class MoveExportedFiles extends MasterRepo {
 
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
+    fLogger.info("{}:\tMove exported files", FateTxId.formatTid(tid));
+
     try {
       VolumeManager fs = master.getFileSystem();
 
