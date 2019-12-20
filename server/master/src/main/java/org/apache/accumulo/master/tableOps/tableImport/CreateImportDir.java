@@ -51,20 +51,20 @@ class CreateImportDir extends MasterRepo implements FateLogger {
     Path exportDir = new Path(tableInfo.exportDir);
     String[] tableDirs = ServerConstants.getTablesDirs(master.getContext());
 
-    fLogger.info("{}:\tLooking for matching filesystem for {} from options {}",
+    FateLogger.info("{}:\tLooking for matching filesystem for {} from options {}",
         FateTxId.formatTid(tid), exportDir, Arrays.toString(tableDirs));
     Path base = master.getFileSystem().matchingFileSystem(exportDir, tableDirs);
     if (base == null) {
       throw new IOException(tableInfo.exportDir + " is not in a volume configured for Accumulo");
     }
-    fLogger.info("{}:\tChose base table directory of {}", FateTxId.formatTid(tid), base);
+    FateLogger.info("{}:\tChose base table directory of {}", FateTxId.formatTid(tid), base);
     Path directory = new Path(base, tableInfo.tableId.canonical());
 
     Path newBulkDir = new Path(directory, Constants.BULK_PREFIX + namer.getNextName());
 
     tableInfo.importDir = newBulkDir.toString();
 
-    fLogger.info("{}:\tUsing import dir: {}", FateTxId.formatTid(tid), tableInfo.importDir);
+    FateLogger.info("{}:\tUsing import dir: {}", FateTxId.formatTid(tid), tableInfo.importDir);
 
     return new MapImportFileNames(tableInfo);
   }

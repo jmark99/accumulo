@@ -19,12 +19,9 @@
 package org.apache.accumulo.master.tableOps.namespace.create;
 
 import java.util.Map;
-import java.util.concurrent.locks.Lock;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.accumulo.core.data.NamespaceId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -51,13 +48,12 @@ public class CreateNamespace extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
 
-    String fateId = String.format("%016x", tid);
     Utils.getIdLock().lock();
     try {
       namespaceInfo.namespaceId =
           Utils.getNextId(namespaceInfo.namespaceName, master.getContext(), NamespaceId::of);
-      fLogger.info("{}:\tObtaining namespaceID: '{}'",
-          fateId, namespaceInfo.namespaceId.toString());
+      FateLogger.info("{}:\tObtaining namespaceID: '{}'", FateTxId.formatTid(tid),
+          namespaceInfo.namespaceId.toString());
       return new SetupNamespacePermissions(namespaceInfo);
     } finally {
       Utils.getIdLock().unlock();
@@ -67,9 +63,9 @@ public class CreateNamespace extends MasterRepo implements FateLogger {
 
   @Override
   public void undo(long tid, Master env) {
-    fLogger.info("{}:\tUndo-ing CreateNamepace operation", String.format("%016x", tid));
+    FateLogger.info("{}:\tUndo-ing CreateNamepace operation", FateTxId.formatTid(tid));
     // nothing to do, the namespace id was allocated!
-    fLogger.info("{}: END Fate transaction", String.format("%016x", tid));
+    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
   }
 
 }

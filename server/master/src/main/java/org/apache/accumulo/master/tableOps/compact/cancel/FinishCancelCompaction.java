@@ -41,7 +41,7 @@ class FinishCancelCompaction extends MasterRepo implements FateLogger {
   public Repo<Master> call(long tid, Master environment) {
     Utils.unreserveTable(environment, tableId, tid, false);
     Utils.unreserveNamespace(environment, namespaceId, tid, false);
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

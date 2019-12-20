@@ -164,7 +164,7 @@ class LoadFiles extends MasterRepo implements FateLogger {
             log.trace("{} asking {} to bulk import {} files for {} tablets", fmtTid, server,
                 tabletFiles.values().stream().mapToInt(Map::size).sum(), tabletFiles.size());
           }
-          fLogger.info("{}:\tAsking {} to bulk import {} files for {} tablets", String.format(
+          FateLogger.info("{}:\tAsking {} to bulk import {} files for {} tablets", String.format(
               "%016x", tid), server, tabletFiles.values().stream().mapToInt(Map::size).sum(),
               tabletFiles.size());
 

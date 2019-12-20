@@ -148,7 +148,7 @@ class CompactionDriver extends MasterRepo implements FateLogger {
     CompactRange.removeIterators(env, tid, tableId);
     Utils.getReadLock(env, tableId, tid).unlock();
     Utils.getReadLock(env, namespaceId, tid).unlock();
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

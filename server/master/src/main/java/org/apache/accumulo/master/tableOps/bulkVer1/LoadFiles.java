@@ -104,7 +104,7 @@ class LoadFiles extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(final long tid, final Master master) throws Exception {
     master.updateBulkImportStatus(source, BulkImportState.LOADING);
-    fLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid),
+    FateLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid),
         BulkImportState.LOADING);
     ExecutorService executor = getThreadPool(master);
     final AccumuloConfiguration conf = master.getConfiguration();
@@ -114,7 +114,7 @@ class LoadFiles extends MasterRepo implements FateLogger {
       files.add(entry);
     }
     log.debug(FateTxId.formatTid(tid) + " importing " + files.size() + " files");
-    fLogger.info("{}:\tImporting {} files", String.format("%016x", tid), files.size());
+    FateLogger.info("{}:\tImporting {} files", String.format("%016x", tid), files.size());
 
     Path writable = new Path(this.errorDir, ".iswritable");
     if (!fs.createNewFile(writable)) {

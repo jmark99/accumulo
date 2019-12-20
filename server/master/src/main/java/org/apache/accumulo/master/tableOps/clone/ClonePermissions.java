@@ -50,7 +50,7 @@ class ClonePermissions extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master environment) throws Exception {
     // give all table permissions to the creator
-    fLogger.info("{}:\tGranting table permissions to creator", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tGranting table permissions to creator", FateTxId.formatTid(tid));
     for (TablePermission permission : TablePermission.values()) {
       try {
         AuditedSecurityOperation.getInstance(environment.getContext()).grantTablePermission(

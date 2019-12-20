@@ -58,7 +58,7 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
       log.error("Failed to find namespace in zookeeper", e);
     }
     Tables.clearCache(master.getContext());
-    fLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", FateTxId.formatTid(tid), namespaceId);
+    FateLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", FateTxId.formatTid(tid), namespaceId);
 
     // remove any permissions associated with this namespace
     try {
@@ -67,14 +67,14 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
     } catch (ThriftSecurityException e) {
       log.error("{}", e.getMessage(), e);
     }
-    fLogger.info("{}:\tRemoving associated namespace permissions", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tRemoving associated namespace permissions", FateTxId.formatTid(tid));
 
     Utils.unreserveNamespace(master, namespaceId, tid, true);
 
     log.debug("Deleted namespace " + namespaceId);
 
-    fLogger.info("{}:\tDeleted namespace with id {}", FateTxId.formatTid(tid), namespaceId);
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tDeleted namespace with id {}", FateTxId.formatTid(tid), namespaceId);
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
 
     return null;
   }

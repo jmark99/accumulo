@@ -49,14 +49,14 @@ public class CleanUpBulkImport extends MasterRepo implements FateLogger {
 
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
-    fLogger.info("{}:\tRemoving bulkDir processing flag file in {}", String.format("%016x", tid),
+    FateLogger.info("{}:\tRemoving bulkDir processing flag file in {}", String.format("%016x", tid),
         info.bulkDir);
     Path bulkDir = new Path(info.bulkDir);
     MetadataTableUtil.removeBulkLoadInProgressFlag(master.getContext(),
         "/" + bulkDir.getParent().getName() + "/" + bulkDir.getName());
     MetadataTableUtil.addDeleteEntry(master.getContext(), info.tableId, bulkDir.toString());
     if (info.tableState == TableState.ONLINE) {
-      fLogger.info("{}:\tRemoving metadata table markers for loaded files",
+      FateLogger.info("{}:\tRemoving metadata table markers for loaded files",
           String.format("%016x", tid));
       AccumuloClient client = master.getContext();
       MetadataTableUtil.removeBulkLoadEntries(client, info.tableId, tid);
@@ -73,7 +73,7 @@ public class CleanUpBulkImport extends MasterRepo implements FateLogger {
       log.debug("Failed to delete renames and/or loadmap", ioe);
     }
 
-    fLogger.info("{}:\tCompleting bulkDir import transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tCompleting bulkDir import transaction", FateTxId.formatTid(tid));
     if (info.tableState == TableState.ONLINE) {
       ZooArbitrator.cleanup(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
     }

@@ -53,8 +53,8 @@ public class ExportTable extends MasterRepo implements FateLogger {
   @Override
   public void undo(long tid, Master env) throws Exception {
     Utils.unreserveHdfsDirectory(env, new Path(tableInfo.exportDir).toString(), tid);
-    fLogger.info("{}:\tUndo-ing TABLE_EXPORT operation", String.format("%016x", tid));
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    FateLogger.info("{}:\tUndo-ing TABLE_EXPORT operation", String.format("%016x", tid));
+    FateLogger.info("{}:END fate transaction", String.format("%016x", tid));
   }
 
   public static final int VERSION = 1;

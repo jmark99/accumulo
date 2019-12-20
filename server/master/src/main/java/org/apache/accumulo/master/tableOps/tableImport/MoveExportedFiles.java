@@ -48,7 +48,7 @@ class MoveExportedFiles extends MasterRepo implements FateLogger {
 
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
-    fLogger.info("{}:\tMove exported files", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tMove exported files", FateTxId.formatTid(tid));
 
     try {
       VolumeManager fs = master.getFileSystem();

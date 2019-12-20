@@ -50,7 +50,7 @@ public class DeleteTable extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master env) {
     env.getTableManager().transitionTableState(tableId, TableState.DELETING);
-    fLogger.info("{}:\tSetting table state to {}", FateTxId.formatTid(tid), TableState.DELETING);
+    FateLogger.info("{}:\tSetting table state to {}", FateTxId.formatTid(tid), TableState.DELETING);
     env.getEventCoordinator().event("deleting table %s ", tableId);
     return new CleanUp(tableId, namespaceId);
   }
@@ -59,7 +59,7 @@ public class DeleteTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, true);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
-    fLogger.info("{}:\tUndo-ing delete namespace operation", FateTxId.formatTid(tid));
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tUndo-ing delete namespace operation", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 }

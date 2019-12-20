@@ -102,7 +102,7 @@ public class CompactRange extends MasterRepo implements FateLogger {
     ZooReaderWriter zoo = env.getContext().getZooReaderWriter();
     byte[] cid;
     try {
-      fLogger.info("{}:\tMutating table", FateTxId.formatTid(tid));
+      FateLogger.info("{}:\tMutating table", FateTxId.formatTid(tid));
       cid = zoo.mutate(zTablePath, null, null, new Mutator() {
         @Override
         public byte[] mutate(byte[] currentValue) throws Exception {
@@ -185,8 +185,8 @@ public class CompactRange extends MasterRepo implements FateLogger {
     } finally {
       Utils.unreserveNamespace(env, namespaceId, tid, false);
       Utils.unreserveTable(env, tableId, tid, false);
-      fLogger.info("{}:\tUndo-ing TABLE_COMPACT operation", FateTxId.formatTid(tid));
-      fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+      FateLogger.info("{}:\tUndo-ing TABLE_COMPACT operation", FateTxId.formatTid(tid));
+      FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     }
   }
 

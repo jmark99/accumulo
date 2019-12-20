@@ -32,7 +32,7 @@ import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
-import org.slf4j.Logger;
+
 import org.slf4j.LoggerFactory;
 
 public class RenameNamespace extends MasterRepo implements FateLogger {
@@ -67,8 +67,8 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
       final String tap = master.getZooKeeperRoot() + Constants.ZNAMESPACES + "/" + namespaceId
           + Constants.ZNAMESPACE_NAME;
 
-      fLogger.info("{}:\tUpdating zookeeper with new namespace info", FateTxId.formatTid(tid));
-      fLogger.info("{}:\ttap: {}", FateTxId.formatTid(tid), tap);
+      FateLogger.info("{}:\tUpdating zookeeper with new namespace info", FateTxId.formatTid(tid));
+      FateLogger.info("{}:\ttap: {}", FateTxId.formatTid(tid), tap);
 
       zoo.mutate(tap, null, null, new Mutator() {
         @Override
@@ -92,17 +92,17 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(RenameNamespace.class).debug("Renamed namespace {} {} {}", namespaceId,
         oldName, newName);
 
-    fLogger.info("{}:\tRenamed namespace id:{} from {} to {}", String.format("%016x", tid),
+    FateLogger.info("{}:\tRenamed namespace id:{} from {} to {}", String.format("%016x", tid),
         namespaceId, oldName, newName);
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, namespaceId, tid, true);
-    fLogger.info("{}:\tUndo-ing Rename namespace (id: {}", FateTxId.formatTid(tid), namespaceId);
-    fLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tUndo-ing Rename namespace (id: {}", FateTxId.formatTid(tid), namespaceId);
+    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
   }
 
 }

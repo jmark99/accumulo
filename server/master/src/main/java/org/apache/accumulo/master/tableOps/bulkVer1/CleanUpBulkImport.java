@@ -55,7 +55,7 @@ public class CleanUpBulkImport extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     master.updateBulkImportStatus(source, BulkImportState.CLEANUP);
-    fLogger.info("{}:\nUpdating bulk import status to {}", String.format("%016x", tid),
+    FateLogger.info("{}:\nUpdating bulk import status to {}", String.format("%016x", tid),
         BulkImportState.CLEANUP);
     log.debug("removing the bulkDir processing flag file in " + bulk);
     Path bulkDir = new Path(bulk);
@@ -72,7 +72,7 @@ public class CleanUpBulkImport extends MasterRepo implements FateLogger {
     log.debug("completing bulkDir import transaction " + FateTxId.formatTid(tid));
     ZooArbitrator.cleanup(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
     master.removeBulkImportStatus(source);
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    FateLogger.info("{}:END fate transaction", String.format("%016x", tid));
     return null;
   }
 }

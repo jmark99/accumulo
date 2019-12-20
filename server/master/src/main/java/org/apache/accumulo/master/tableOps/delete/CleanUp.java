@@ -202,7 +202,7 @@ class CleanUp extends MasterRepo implements FateLogger {
     }
 
     // remove any permissions associated with this table
-    fLogger.info("{}:\tRemoving permissions associated with table", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tRemoving permissions associated with table", FateTxId.formatTid(tid));
     try {
       AuditedSecurityOperation.getInstance(master.getContext())
           .deleteTable(master.getContext().rpcCreds(), tableId, namespaceId);
@@ -215,7 +215,7 @@ class CleanUp extends MasterRepo implements FateLogger {
 
     LoggerFactory.getLogger(CleanUp.class).debug("Deleted table " + tableId);
 
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

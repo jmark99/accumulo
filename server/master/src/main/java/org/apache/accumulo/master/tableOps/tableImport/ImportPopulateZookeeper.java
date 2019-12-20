@@ -79,7 +79,7 @@ class ImportPopulateZookeeper extends MasterRepo implements FateLogger {
     Utils.getTableNameLock().lock();
     try {
       // write tableName & tableId to zookeeper
-      fLogger.info("{}:\tAdding TableName {} and ID {} to ZooKeeper", FateTxId.formatTid(tid),
+      FateLogger.info("{}:\tAdding TableName {} and ID {} to ZooKeeper", FateTxId.formatTid(tid),
           tableInfo.tableName, tableInfo.tableId);
       Utils.checkTableDoesNotExist(env.getContext(), tableInfo.tableName, tableInfo.tableId,
           TableOperation.CREATE);

@@ -60,9 +60,9 @@ class FinishImportTable extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(FinishImportTable.class)
         .debug("Imported table " + tableInfo.tableId + " " + tableInfo.tableName);
 
-    fLogger.info("{}:\tImported table {} {}", FateTxId.formatTid(tid), tableInfo.tableId,
+    FateLogger.info("{}:\tImported table {} {}", FateTxId.formatTid(tid), tableInfo.tableId,
         tableInfo.tableName);
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

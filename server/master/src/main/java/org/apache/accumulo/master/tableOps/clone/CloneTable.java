@@ -63,7 +63,7 @@ public class CloneTable extends MasterRepo implements FateLogger {
     try {
       cloneInfo.tableId =
           Utils.getNextId(cloneInfo.tableName, environment.getContext(), TableId::of);
-      fLogger.info("{}:\tObtaining new id '{}' for clone", FateTxId.formatTid(tid),
+      FateLogger.info("{}:\tObtaining new id '{}' for clone", FateTxId.formatTid(tid),
           cloneInfo.tableId);
       return new ClonePermissions(cloneInfo);
     } finally {
@@ -75,8 +75,8 @@ public class CloneTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master environment) {
     Utils.unreserveNamespace(environment, cloneInfo.srcNamespaceId, tid, false);
     Utils.unreserveTable(environment, cloneInfo.srcTableId, tid, false);
-    fLogger.info("{}:\tUndo-ing Clone Table operation", FateTxId.formatTid(tid));
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid), tid);
+    FateLogger.info("{}:\tUndo-ing Clone Table operation", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid), tid);
   }
 
 }

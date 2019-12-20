@@ -24,9 +24,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedSet;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.MutationsRejectedException;
 import org.apache.accumulo.core.client.admin.TimeType;
@@ -84,7 +81,7 @@ class PopulateMetadata extends MasterRepo implements FateLogger {
             splitDirMap, tableInfo.getTimeType(), environment.getMasterLock(), bw);
       }
     }
-    fLogger.info("{}:\tPopulated metadata table", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tPopulated metadata table", FateTxId.formatTid(tid));
     return new FinishCreateTable(tableInfo);
   }
 

@@ -20,9 +20,6 @@ package org.apache.accumulo.master.tableOps.create;
 
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.accumulo.core.client.admin.InitialTableState;
 import org.apache.accumulo.core.client.admin.TimeType;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
@@ -75,7 +72,7 @@ public class CreateTable extends MasterRepo implements FateLogger {
     try {
       String tName = tableInfo.getTableName();
       tableInfo.setTableId(Utils.getNextId(tName, master.getContext(), TableId::of));
-      fLogger.info("{}:\tSetting table ID to {}", FateTxId.formatTid(tid),
+      FateLogger.info("{}:\tSetting table ID to {}", FateTxId.formatTid(tid),
           tableInfo.getTableId().canonical());
       return new SetupPermissions(tableInfo);
     } finally {
@@ -86,8 +83,8 @@ public class CreateTable extends MasterRepo implements FateLogger {
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, tableInfo.getNamespaceId(), tid, false);
-    fLogger.info("{}:\tUndo-ing Create table operation.", FateTxId.formatTid(tid));
-    fLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tUndo-ing Create table operation.", FateTxId.formatTid(tid));
+    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
   }
 
 }

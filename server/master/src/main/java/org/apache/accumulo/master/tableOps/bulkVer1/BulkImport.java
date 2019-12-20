@@ -143,7 +143,8 @@ public class BulkImport extends MasterRepo implements FateLogger {
 
     ZooArbitrator.start(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
     master.updateBulkImportStatus(sourceDir, BulkImportState.MOVING);
-    fLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid), BulkImportState.MOVING);
+    FateLogger
+        .info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid), BulkImportState.MOVING);
     // move the files into the directory
     try {
       String bulkDir = prepareBulkImport(master.getContext(), fs, sourceDir, tableId, tid);
@@ -282,7 +283,7 @@ public class BulkImport extends MasterRepo implements FateLogger {
     Utils.unreserveHdfsDirectory(environment, errorDir, tid);
     Utils.getReadLock(environment, tableId, tid).unlock();
     ZooArbitrator.cleanup(environment.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
-    fLogger.info("{}:\tUndo-ing Bulk Import operation", String.format("%016x", tid));
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    FateLogger.info("{}:\tUndo-ing Bulk Import operation", String.format("%016x", tid));
+    FateLogger.info("{}:END fate transaction", String.format("%016x", tid));
   }
 }

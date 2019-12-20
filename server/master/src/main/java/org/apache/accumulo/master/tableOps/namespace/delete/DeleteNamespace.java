@@ -51,8 +51,8 @@ public class DeleteNamespace extends MasterRepo implements FateLogger {
   @Override
   public void undo(long tid, Master environment) {
     Utils.unreserveNamespace(environment, namespaceId, tid, true);
-    fLogger.info("{}:\tUndo-ing delete namespace operation", FateTxId.formatTid(tid));
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid), tid);
+    FateLogger.info("{}:\tUndo-ing delete namespace operation", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid), tid);
   }
 
 }

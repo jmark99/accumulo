@@ -20,9 +20,6 @@ package org.apache.accumulo.master.tableOps.namespace.create;
 
 import java.util.Map.Entry;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.fate.Repo;
@@ -65,7 +62,7 @@ class PopulateZookeeperWithNamespace extends MasterRepo implements FateLogger {
         NamespacePropUtil.setNamespaceProperty(master.getContext(), namespaceInfo.namespaceId,
             entry.getKey(), entry.getValue());
 
-      fLogger.info("{}:\tPopulating zookeeper with namespace info",
+      FateLogger.info("{}:\tPopulating zookeeper with namespace info",
           String.format("%016x", tid));
 
       Tables.clearCache(master.getContext());
@@ -81,7 +78,6 @@ class PopulateZookeeperWithNamespace extends MasterRepo implements FateLogger {
     master.getTableManager().removeNamespace(namespaceInfo.namespaceId);
     Tables.clearCache(master.getContext());
     Utils.unreserveNamespace(master, namespaceInfo.namespaceId, tid, true);
-    fLogger.info("{}:\tUndo-ing Populate ZK with Namespace info", String.format("%016x", tid));
   }
 
 }

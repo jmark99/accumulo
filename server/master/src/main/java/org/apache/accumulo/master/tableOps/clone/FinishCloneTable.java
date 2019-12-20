@@ -49,7 +49,7 @@ class FinishCloneTable extends MasterRepo implements FateLogger {
     // may never create files.. therefore there is no need to consume namenode space w/ directories
     // that are not used... tablet will create directories as needed
 
-    fLogger.info("{}:\tBringing table with id: {} online",
+    FateLogger.info("{}:\tBringing table with id: {} online",
         FateTxId.formatTid(tid), cloneInfo.tableId);
     environment.getTableManager().transitionTableState(cloneInfo.tableId, TableState.ONLINE);
 
@@ -65,9 +65,9 @@ class FinishCloneTable extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(FinishCloneTable.class).debug("Cloned table " + cloneInfo.srcTableId
         + " " + cloneInfo.tableId + " " + cloneInfo.tableName);
 
-    fLogger.info("{}:\tCloned table with id {} to '{}' (id: {})", FateTxId.formatTid(tid),
+    FateLogger.info("{}:\tCloned table with id {} to '{}' (id: {})", FateTxId.formatTid(tid),
         cloneInfo.srcTableId, cloneInfo.tableName, cloneInfo.tableId);
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
 
     return null;
   }

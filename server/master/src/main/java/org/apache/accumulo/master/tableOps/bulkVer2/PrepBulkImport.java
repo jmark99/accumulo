@@ -175,7 +175,7 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(final long tid, final Master master) throws Exception {
     // now that table lock is acquired check that all splits in load mapping exists in table
-    fLogger.info("{}:\tChecking that all splits in load mapping exist in table", String.format(
+    FateLogger.info("{}:\tChecking that all splits in load mapping exist in table", String.format(
         "%016x", tid));
     checkForMerge(master);
 
@@ -189,7 +189,7 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
     Path bulkDir = createNewBulkDir(master.getContext(), fs, bulkInfo.tableId);
     Path mappingFile = new Path(sourceDir, Constants.BULK_LOAD_MAPPING);
 
-    fLogger.info("{}:\tSourceDir: {}/{}; bulkDir: {}/{}; mappingFile: {}/{}",
+    FateLogger.info("{}:\tSourceDir: {}/{}; bulkDir: {}/{}; mappingFile: {}/{}",
         String.format("%016x", tid), sourceDir.getParent().getName(), sourceDir.getName(),
         bulkDir.getParent().getName(), bulkDir.getName(),
         mappingFile.getParent().getName(),  mappingFile.getName());
@@ -244,7 +244,7 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
     Utils.getReadLock(environment, bulkInfo.tableId, tid).unlock();
     TransactionWatcher.ZooArbitrator.cleanup(environment.getContext(),
         Constants.BULK_ARBITRATOR_TYPE, tid);
-    fLogger.info("{}:\tUndo-ing delete namespace operation", String.format("%016x", tid));
-    fLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    FateLogger.info("{}:\tUndo-ing delete namespace operation", String.format("%016x", tid));
+    FateLogger.info("{}:END fate transaction", String.format("%016x", tid));
   }
 }

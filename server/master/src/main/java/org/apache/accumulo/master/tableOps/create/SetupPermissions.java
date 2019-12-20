@@ -29,7 +29,6 @@ import org.apache.accumulo.master.tableOps.TableInfo;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SecurityOperation;
 
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class SetupPermissions extends MasterRepo implements FateLogger {
@@ -47,7 +46,7 @@ class SetupPermissions extends MasterRepo implements FateLogger {
     // give all table permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
     if (!tableInfo.getUser().equals(env.getContext().getCredentials().getPrincipal())) {
-      fLogger.info("{}:\tSetting table permissions", FateTxId.formatTid(tid));
+      FateLogger.info("{}:\tSetting table permissions", FateTxId.formatTid(tid));
       for (TablePermission permission : TablePermission.values()) {
         try {
           security.grantTablePermission(env.getContext().rpcCreds(), tableInfo.getUser(),
@@ -57,7 +56,7 @@ class SetupPermissions extends MasterRepo implements FateLogger {
           throw e;
         }
       }
-      fLogger.info("{}:\tTable permissions set", FateTxId.formatTid(tid));
+      FateLogger.info("{}:\tTable permissions set", FateTxId.formatTid(tid));
     }
 
     // setup permissions in zookeeper before table info in zookeeper

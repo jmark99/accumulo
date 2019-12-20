@@ -38,7 +38,7 @@ public class CompleteBulkImport extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     ZooArbitrator.stop(master.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
-    fLogger.info("{}:\tStopping Arbitrator", String.format("%016x", tid));
+    FateLogger.info("{}:\tStopping Arbitrator", String.format("%016x", tid));
     return new CleanUpBulkImport(info);
   }
 }

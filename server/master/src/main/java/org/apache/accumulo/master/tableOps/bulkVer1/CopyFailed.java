@@ -95,7 +95,7 @@ class CopyFailed extends MasterRepo implements FateLogger {
   public Repo<Master> call(long tid, Master master) throws Exception {
     // This needs to execute after the arbiter is stopped
     master.updateBulkImportStatus(source, BulkImportState.COPY_FILES);
-    fLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid),
+    FateLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid),
         BulkImportState.COPY_FILES);
     VolumeManager fs = master.getFileSystem();
 
@@ -139,7 +139,7 @@ class CopyFailed extends MasterRepo implements FateLogger {
     }
 
     // move failed files that were not loaded
-    fLogger.info("{}:\tMoving failed file that were not loaded ", String.format("%016x", tid));
+    FateLogger.info("{}:\tMoving failed file that were not loaded ", String.format("%016x", tid));
     for (String failure : failures.values()) {
       Path orig = new Path(failure);
       Path dest = new Path(error, orig.getName());

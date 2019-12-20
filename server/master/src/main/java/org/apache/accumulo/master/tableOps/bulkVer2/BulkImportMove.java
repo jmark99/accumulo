@@ -93,7 +93,7 @@ class BulkImportMove extends MasterRepo implements FateLogger {
           BulkSerialize.readRenameMap(bulkDir.toString(), p -> fs.open(p));
       moveFiles(tid, sourceDir, bulkDir, master, fs, oldToNewNameMap);
 
-      fLogger.info("{}:\tMoving files from {} to {}", String.format("%016x", tid),
+      FateLogger.info("{}:\tMoving files from {} to {}", String.format("%016x", tid),
           sourceDir.getName(), bulkDir.getName());
 
       return new LoadFiles(bulkInfo);

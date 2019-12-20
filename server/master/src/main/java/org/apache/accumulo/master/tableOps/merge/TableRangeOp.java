@@ -71,15 +71,15 @@ public class TableRangeOp extends MasterRepo implements FateLogger {
     if (RootTable.ID.equals(tableId) && Operation.MERGE.equals(op)) {
       log.warn("Attempt to merge tablets for {} does nothing. It is not splittable.",
           RootTable.NAME);
-      fLogger.info("{}:\tAttempting to merge tablets for {} does nothing. It is not splittable.",
+      FateLogger.info("{}:\tAttempting to merge tablets for {} does nothing. It is not splittable.",
           FateTxId.formatTid(tid), RootTable.NAME);
     }
 
     Text start = startRow.length == 0 ? null : new Text(startRow);
     Text end = endRow.length == 0 ? null : new Text(endRow);
 
-    fLogger.info("{}:\tSetting start row to {}", FateTxId.formatTid(tid), start);
-    fLogger.info("{}:\tSetting end row to {}", FateTxId.formatTid(tid), end);
+    FateLogger.info("{}:\tSetting start row to {}", FateTxId.formatTid(tid), start);
+    FateLogger.info("{}:\tSetting end row to {}", FateTxId.formatTid(tid), end);
 
     if (start != null && end != null)
       if (start.compareTo(end) >= 0)
@@ -108,8 +108,8 @@ public class TableRangeOp extends MasterRepo implements FateLogger {
     env.clearMergeState(tableId);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
     Utils.unreserveTable(env, tableId, tid, true);
-    fLogger.info("{}:\tUndo-ing {} operation", FateTxId.formatTid(tid), op.name());
-    fLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tUndo-ing {} operation", FateTxId.formatTid(tid), op.name());
+    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 
 }

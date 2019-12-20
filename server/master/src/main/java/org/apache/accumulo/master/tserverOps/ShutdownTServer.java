@@ -64,9 +64,10 @@ public class ShutdownTServer extends MasterRepo implements FateLogger {
         try {
           TabletServerStatus status = connection.getTableMap(false);
           if (status.tableMap != null && status.tableMap.isEmpty()) {
-            fLogger.info("{}:\ttablet server hosts no tablets {}", FateTxId.formatTid(tid), server);
+            FateLogger
+                .info("{}:\ttablet server hosts no tablets {}", FateTxId.formatTid(tid), server);
             connection.halt(master.getMasterLock());
-            fLogger.info("{}:\ttablet server asked to halt {}", FateTxId.formatTid(tid), server);
+            FateLogger.info("{}:\ttablet server asked to halt {}", FateTxId.formatTid(tid), server);
             return 0;
           }
         } catch (TTransportException ex) {

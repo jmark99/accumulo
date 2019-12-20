@@ -20,9 +20,6 @@ package org.apache.accumulo.master.tableOps.create;
 
 import java.util.Map.Entry;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.fate.FateTxId;
@@ -70,7 +67,7 @@ class PopulateZookeeper extends MasterRepo implements FateLogger {
 
       Tables.clearCache(master.getContext());
 
-      fLogger.info("{}:\tWriting tablename ({}) and tableId ({}) to ZooKeeper",
+      FateLogger.info("{}:\tWriting tablename ({}) and tableId ({}) to ZooKeeper",
           FateTxId.formatTid(tid), tableInfo.getTableName(), tableInfo.getTableId());
 
       return new ChooseDir(tableInfo);
