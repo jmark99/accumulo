@@ -28,7 +28,6 @@ import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.TableInfo;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SecurityOperation;
-
 import org.slf4j.LoggerFactory;
 
 class SetupPermissions extends MasterRepo implements FateLogger {
@@ -55,8 +54,9 @@ class SetupPermissions extends MasterRepo implements FateLogger {
           LoggerFactory.getLogger(SetupPermissions.class).error("{}", e.getMessage(), e);
           throw e;
         }
+        FateLogger.info("{}:\t\tGranting: {}", FateTxId.formatTid(tid), permission.name());
       }
-      FateLogger.info("{}:\tTable permissions set", FateTxId.formatTid(tid));
+      FateLogger.info("{}:\tCompleted setting permissions.", FateTxId.formatTid(tid));
     }
 
     // setup permissions in zookeeper before table info in zookeeper
@@ -69,6 +69,8 @@ class SetupPermissions extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) throws Exception {
     AuditedSecurityOperation.getInstance(env.getContext()).deleteTable(env.getContext().rpcCreds(),
         tableInfo.getTableId(), tableInfo.getNamespaceId());
+    FateLogger.info("{}:\tDeleting table id:{}", FateTxId.formatTid(tid),
+        tableInfo.getTableName());
   }
 
 }

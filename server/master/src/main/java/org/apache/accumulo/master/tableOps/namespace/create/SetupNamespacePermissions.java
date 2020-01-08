@@ -21,12 +21,11 @@ package org.apache.accumulo.master.tableOps.namespace.create;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.security.NamespacePermission;
 import org.apache.accumulo.fate.Repo;
-import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.FateLogger;
+import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SecurityOperation;
-
 import org.slf4j.LoggerFactory;
 
 class SetupNamespacePermissions extends MasterRepo implements FateLogger {

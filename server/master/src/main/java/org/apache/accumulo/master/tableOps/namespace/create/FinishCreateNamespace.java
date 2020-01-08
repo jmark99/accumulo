@@ -20,12 +20,10 @@ package org.apache.accumulo.master.tableOps.namespace.create;
 
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
-import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.FateLogger;
+import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
-
-import org.slf4j.LoggerFactory;
 
 class FinishCreateNamespace extends MasterRepo implements FateLogger {
 
@@ -49,8 +47,8 @@ class FinishCreateNamespace extends MasterRepo implements FateLogger {
 
     env.getEventCoordinator().event("Created namespace %s ", namespaceInfo.namespaceName);
 
-    FateLogger.info("{}:\tNamespace {}:{} creation completed",
-        FateTxId.formatTid(tid), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
+    FateLogger.info("{}:\tNamespace {}:{} creation completed", FateTxId.formatTid(tid),
+        namespaceInfo.namespaceName, namespaceInfo.namespaceId);
     FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
     return null;
   }

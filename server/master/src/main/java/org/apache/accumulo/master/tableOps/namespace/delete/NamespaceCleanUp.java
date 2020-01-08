@@ -58,7 +58,8 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
       log.error("Failed to find namespace in zookeeper", e);
     }
     Tables.clearCache(master.getContext());
-    FateLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", FateTxId.formatTid(tid), namespaceId);
+    FateLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", FateTxId.formatTid(tid),
+        namespaceId);
 
     // remove any permissions associated with this namespace
     try {

@@ -45,8 +45,8 @@ class CloneMetadata extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(CloneMetadata.class)
         .info(String.format("Cloning %s with tableId %s from srcTableId %s", cloneInfo.tableName,
             cloneInfo.tableId, cloneInfo.srcTableId));
-    FateLogger.info("{}:\tCloning {} ({}) from source table id: {}",
-        FateTxId.formatTid(tid), cloneInfo.tableName, cloneInfo.tableId, cloneInfo.srcTableId);
+    FateLogger.info("{}:\tCloning {} ({}) from source table id: {}", FateTxId.formatTid(tid),
+        cloneInfo.tableName, cloneInfo.tableId, cloneInfo.srcTableId);
     // need to clear out any metadata entries for tableId just in case this
     // died before and is executing again
     MetadataTableUtil.deleteTable(cloneInfo.tableId, false, environment.getContext(),

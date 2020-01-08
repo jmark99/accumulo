@@ -64,6 +64,10 @@ class ChooseDir extends MasterRepo implements FateLogger {
   public void undo(long tid, Master master) throws Exception {
     VolumeManager fs = master.getFileSystem();
     fs.deleteRecursively(new Path(tableInfo.getSplitDirsFile()));
+    if (tableInfo.getSplitDirsFile().length() > 0) {
+      FateLogger.info("{}:\tDeleting split directories file '{}'", FateTxId.formatTid(tid),
+          tableInfo.getSplitDirsFile());
+    }
   }
 
   /**

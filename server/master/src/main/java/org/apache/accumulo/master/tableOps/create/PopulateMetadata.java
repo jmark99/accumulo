@@ -71,6 +71,7 @@ class PopulateMetadata extends MasterRepo implements FateLogger {
         environment.getContext(), tableInfo.getTimeType(), environment.getMasterLock());
 
     if (tableInfo.getInitialSplitSize() > 0) {
+      FateLogger.info("{}:\tWriting splits to metadata table", FateTxId.formatTid(tid));
       SortedSet<Text> splits =
           Utils.getSortedSetFromFile(environment.getInputStream(tableInfo.getSplitFile()), true);
       SortedSet<Text> dirs = Utils
@@ -81,7 +82,6 @@ class PopulateMetadata extends MasterRepo implements FateLogger {
             splitDirMap, tableInfo.getTimeType(), environment.getMasterLock(), bw);
       }
     }
-    FateLogger.info("{}:\tPopulated metadata table", FateTxId.formatTid(tid));
     return new FinishCreateTable(tableInfo);
   }
 

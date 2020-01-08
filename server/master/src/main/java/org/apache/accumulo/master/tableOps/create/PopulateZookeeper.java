@@ -56,7 +56,7 @@ class PopulateZookeeper extends MasterRepo implements FateLogger {
     try {
       // write tableName & tableId to zookeeper
       Utils.checkTableDoesNotExist(master.getContext(), tableInfo.getTableName(),
-          tableInfo.getTableId(), TableOperation.CREATE);
+          tableInfo.getTableId(), TableOperation.CREATE, tid);
 
       master.getTableManager().addTable(tableInfo.getTableId(), tableInfo.getNamespaceId(),
           tableInfo.getTableName(), NodeExistsPolicy.OVERWRITE);
@@ -67,7 +67,7 @@ class PopulateZookeeper extends MasterRepo implements FateLogger {
 
       Tables.clearCache(master.getContext());
 
-      FateLogger.info("{}:\tWriting tablename ({}) and tableId ({}) to ZooKeeper",
+      FateLogger.info("{}:\tWriting {}:{} to ZooKeeper",
           FateTxId.formatTid(tid), tableInfo.getTableName(), tableInfo.getTableId());
 
       return new ChooseDir(tableInfo);

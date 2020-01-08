@@ -32,7 +32,6 @@ import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.master.tableOps.Utils;
-
 import org.slf4j.LoggerFactory;
 
 public class RenameNamespace extends MasterRepo implements FateLogger {

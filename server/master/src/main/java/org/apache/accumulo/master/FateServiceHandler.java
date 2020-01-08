@@ -117,8 +117,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         validateArgumentCount(arguments, tableOp, 1);
         String namespace = validateNamespaceArgument(arguments.get(0), tableOp, null);
 
-        FateLogger.info("{}: Goal: Create Namespace '{}' ",
-            FateTxId.formatTid(opid), namespace);
+        FateLogger.info("{}: Goal: Create Namespace '{}' ", FateTxId.formatTid(opid), namespace);
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         if (!master.security.canCreateNamespace(c))
@@ -136,8 +135,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             Namespaces.NOT_DEFAULT.and(Namespaces.NOT_ACCUMULO));
         String newName = validateNamespaceArgument(arguments.get(1), tableOp, null);
 
-        FateLogger.info("{}: Goal: Rename Namespace from '{}' to '{}' ",
-            FateTxId.formatTid(opid), oldName, newName);
+        FateLogger.info("{}: Goal: Rename Namespace from '{}' to '{}' ", FateTxId.formatTid(opid),
+            oldName, newName);
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         NamespaceId namespaceId =
@@ -179,15 +178,13 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String tableName = validateTableNameArgument(arguments.get(0), tableOp, NOT_SYSTEM);
         TimeType timeType = TimeType.valueOf(ByteBufferUtil.toString(arguments.get(1)));
 
-
-
         InitialTableState initialTableState =
             InitialTableState.valueOf(ByteBufferUtil.toString(arguments.get(2)));
         int splitCount = Integer.parseInt(ByteBufferUtil.toString(arguments.get(3)));
         validateArgumentCount(arguments, tableOp, SPLIT_OFFSET + splitCount);
 
-        FateLogger.info("{}: Goal: Create Table '{}' in {} mode with {} initial splits", FateTxId.formatTid(opid),
-            tableName, initialTableState.toString(), splitCount);
+        FateLogger.info("{}: Goal: Create Table '{}' in {} mode with {} initial splits",
+            FateTxId.formatTid(opid), tableName, initialTableState.toString(), splitCount);
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         String splitFile = null;
@@ -201,7 +198,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
                 TableOperationExceptionType.OTHER,
                 "Exception thrown while writing splits to file system");
           }
-          FateLogger.info("{}:\tWriting splits to {}/{}", FateTxId.formatTid(opid), splitDirsFile, splitFile);
+          FateLogger.info("{}:\tWriting splits to {}/{}", FateTxId.formatTid(opid), splitDirsFile,
+              splitFile);
         }
         NamespaceId namespaceId;
 
@@ -245,8 +243,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
 
             });
 
-        FateLogger
-            .info("{}: Goal: Rename Table '{}' to '{}'", FateTxId.formatTid(opid), oldTableName, newTableName);
+        FateLogger.info("{}: Goal: Rename Table '{}' to '{}'", FateTxId.formatTid(opid),
+            oldTableName, newTableName);
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         TableId tableId =
@@ -364,7 +362,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         final TableId tableId = validateTableIdArgument(arguments.get(0), tableOp, NOT_ROOT_ID);
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Bring Table Online: '{}'", FateTxId.formatTid(opid), tableId.canonical());
+        FateLogger.info("{}: Goal: Bring Table Online: '{}'", FateTxId.formatTid(opid),
+            tableId.canonical());
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         final boolean canOnlineOfflineTable;
@@ -389,7 +388,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         final TableId tableId = validateTableIdArgument(arguments.get(0), tableOp, NOT_ROOT_ID);
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Take Table Offline: '{}'", FateTxId.formatTid(opid), tableId.canonical());
+        FateLogger.info("{}: Goal: Take Table Offline: '{}'", FateTxId.formatTid(opid),
+            tableId.canonical());
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         final boolean canOnlineOfflineTable;
@@ -415,8 +415,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         Text startRow = ByteBufferUtil.toText(arguments.get(1));
         Text endRow = ByteBufferUtil.toText(arguments.get(2));
 
-        FateLogger.info("{}: Goal: Perform Table Merge: '{}'; startrow: {}; endrow: {}", FateTxId.formatTid(opid),
-            tableName, startRow, endRow);
+        FateLogger.info("{}: Goal: Perform Table Merge: '{}'; startrow: {}; endrow: {}",
+            FateTxId.formatTid(opid), tableName, startRow, endRow);
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         final TableId tableId =
@@ -479,8 +479,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String failDir = ByteBufferUtil.toString(arguments.get(2));
         boolean setTime = Boolean.parseBoolean(ByteBufferUtil.toString(arguments.get(3)));
 
-        FateLogger.info("{}: Goal: (Legacy) Import files from {} to table {}", FateTxId.formatTid(opid), dir,
-            tableName);
+        FateLogger.info("{}: Goal: (Legacy) Import files from {} to table {}",
+            FateTxId.formatTid(opid), dir, tableName);
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         final TableId tableId =
@@ -520,7 +520,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             CompactionStrategyConfigUtil.decode(ByteBufferUtil.toBytes(arguments.get(4)));
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Compact Table '{}'", FateTxId.formatTid(opid), tableId.canonical());
+        FateLogger.info("{}: Goal: Compact Table '{}'", FateTxId.formatTid(opid),
+            tableId.canonical());
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         final boolean canCompact;
@@ -632,7 +633,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         TableId tableId = validateTableIdArgument(arguments.get(0), tableOp, NOT_ROOT_ID);
         String dir = ByteBufferUtil.toString(arguments.get(1));
 
-        FateLogger.info("{}: Goal: Import files from {} to table {}", FateTxId.formatTid(opid), dir, tableId);
+        FateLogger.info("{}: Goal: Import files from {} to table {}", FateTxId.formatTid(opid), dir,
+            tableId);
         FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
 
         boolean setTime = Boolean.parseBoolean(ByteBufferUtil.toString(arguments.get(2)));
@@ -834,7 +836,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
   private String createSplitDirsFile(final long opid) throws IOException {
     String opidStr = String.format("%016x", opid);
     String splitDirPath = getSplitPath("/tmp/splitDirs-" + opidStr);
-    //removeAndCreateTempFile(splitDirPath);
+    // removeAndCreateTempFile(splitDirPath);
     return splitDirPath;
   }
 
@@ -846,7 +848,6 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
     removeAndCreateTempFile(fateDirPath);
     return fateDirPath;
   }
-
 
   /**
    * Write the split values to a tmp directory with unique name. Given that it is not known if the

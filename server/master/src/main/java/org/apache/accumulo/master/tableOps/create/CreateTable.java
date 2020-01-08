@@ -72,7 +72,7 @@ public class CreateTable extends MasterRepo implements FateLogger {
     try {
       String tName = tableInfo.getTableName();
       tableInfo.setTableId(Utils.getNextId(tName, master.getContext(), TableId::of));
-      FateLogger.info("{}:\tSetting table ID to {}", FateTxId.formatTid(tid),
+      FateLogger.info("{}:\tSetting table id:{}", FateTxId.formatTid(tid),
           tableInfo.getTableId().canonical());
       return new SetupPermissions(tableInfo);
     } finally {
@@ -82,8 +82,8 @@ public class CreateTable extends MasterRepo implements FateLogger {
 
   @Override
   public void undo(long tid, Master env) {
+    FateLogger.info("{}:\tReverting TABLE_CREATE operation.", FateTxId.formatTid(tid));
     Utils.unreserveNamespace(env, tableInfo.getNamespaceId(), tid, false);
-    FateLogger.info("{}:\tUndo-ing Create table operation.", FateTxId.formatTid(tid));
     FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
   }
 

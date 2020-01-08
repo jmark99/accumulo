@@ -78,7 +78,7 @@ public class RenameTable extends MasterRepo implements FateLogger {
     Utils.getTableNameLock().lock();
     try {
       Utils.checkTableDoesNotExist(master.getContext(), newTableName, tableId,
-          TableOperation.RENAME);
+          TableOperation.RENAME, tid);
 
       final String newName = qualifiedNewTableName.getSecond();
       final String oldName = qualifiedOldTableName.getSecond();
@@ -108,8 +108,8 @@ public class RenameTable extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(RenameTable.class).debug("Renamed table {} {} {}", tableId,
         oldTableName, newTableName);
 
-    FateLogger.info("{}:\tRenamed table {} {} {}", FateTxId.formatTid(tid), tableId,
-        oldTableName, newTableName);
+    FateLogger.info("{}:\tRenamed table {} {} {}", FateTxId.formatTid(tid), tableId, oldTableName,
+        newTableName);
     FateLogger.info("{}: END fate transaction", FateTxId.formatTid(tid));
 
     return null;

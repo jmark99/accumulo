@@ -49,8 +49,8 @@ class FinishCloneTable extends MasterRepo implements FateLogger {
     // may never create files.. therefore there is no need to consume namenode space w/ directories
     // that are not used... tablet will create directories as needed
 
-    FateLogger.info("{}:\tBringing table with id: {} online",
-        FateTxId.formatTid(tid), cloneInfo.tableId);
+    FateLogger.info("{}:\tBringing table with id: {} online", FateTxId.formatTid(tid),
+        cloneInfo.tableId);
     environment.getTableManager().transitionTableState(cloneInfo.tableId, TableState.ONLINE);
 
     Utils.unreserveNamespace(environment, cloneInfo.srcNamespaceId, tid, false);

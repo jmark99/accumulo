@@ -65,12 +65,16 @@ class FinishCreateTable extends MasterRepo implements FateLogger {
     Utils.unreserveTable(env, tableInfo.getTableId(), tid, true);
 
     env.getEventCoordinator().event("Created table %s ", tableInfo.getTableName());
-    FateLogger.info("{}:\tCreated table '{}'", FateTxId.formatTid(tid),  tableInfo.getTableName());
-    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tCreated table - {}:{}", FateTxId.formatTid(tid),
+        tableInfo.getTableName(), tableInfo.getTableId().canonical());
+
 
     if (tableInfo.getInitialSplitSize() > 0) {
+      FateLogger.info("{}:\tDeleting splits file", FateTxId.formatTid(tid));
       cleanupSplitFiles(env);
     }
+
+    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
     return null;
   }
 

@@ -40,11 +40,13 @@ import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.data.AbstractId;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.zookeeper.DistributedReadWriteLock;
 import org.apache.accumulo.fate.zookeeper.ZooQueueLock;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooReservation;
 import org.apache.accumulo.fate.zookeeper.ZooUtil;
+import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -53,18 +55,21 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Utils {
+public class Utils implements FateLogger {
   private static final byte[] ZERO_BYTE = {'0'};
   private static final Logger log = LoggerFactory.getLogger(Utils.class);
 
   public static void checkTableDoesNotExist(ServerContext context, String tableName,
-      TableId tableId, TableOperation operation) throws AcceptableThriftTableOperationException {
+      TableId tableId, TableOperation operation, long tid)
+      throws AcceptableThriftTableOperationException {
 
     TableId id = Tables.getNameToIdMap(context).get(tableName);
 
-    if (id != null && !id.equals(tableId))
+    if (id != null && !id.equals(tableId)) {
+      FateLogger.info("{}:\tTable name '{}' exists", FateTxId.formatTid(tid), tableName);
       throw new AcceptableThriftTableOperationException(null, tableName, operation,
           TableOperationExceptionType.EXISTS, null);
+    }
   }
 
   public static <T extends AbstractId<T>> T getNextId(String name, ServerContext context,

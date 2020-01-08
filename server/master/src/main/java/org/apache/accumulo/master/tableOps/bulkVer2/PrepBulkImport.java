@@ -175,8 +175,8 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(final long tid, final Master master) throws Exception {
     // now that table lock is acquired check that all splits in load mapping exists in table
-    FateLogger.info("{}:\tChecking that all splits in load mapping exist in table", String.format(
-        "%016x", tid));
+    FateLogger.info("{}:\tChecking that all splits in load mapping exist in table",
+        String.format("%016x", tid));
     checkForMerge(master);
 
     bulkInfo.tableState = Tables.getTableState(master.getContext(), bulkInfo.tableId);
@@ -191,8 +191,8 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
 
     FateLogger.info("{}:\tSourceDir: {}/{}; bulkDir: {}/{}; mappingFile: {}/{}",
         String.format("%016x", tid), sourceDir.getParent().getName(), sourceDir.getName(),
-        bulkDir.getParent().getName(), bulkDir.getName(),
-        mappingFile.getParent().getName(),  mappingFile.getName());
+        bulkDir.getParent().getName(), bulkDir.getName(), mappingFile.getParent().getName(),
+        mappingFile.getName());
 
     Map<String,String> oldToNewNameMap = new HashMap<>();
 
