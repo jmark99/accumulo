@@ -47,7 +47,7 @@ class FinishCreateNamespace extends MasterRepo implements FateLogger {
 
     env.getEventCoordinator().event("Created namespace %s ", namespaceInfo.namespaceName);
 
-    FateLogger.info("{}:\tNamespace {}:{} creation completed", FateTxId.formatTid(tid),
+    FateLogger.info("{}:\tNamespace {}:{} created", FateTxId.formatTid(tid),
         namespaceInfo.namespaceName, namespaceInfo.namespaceId);
     FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
     return null;

@@ -63,7 +63,7 @@ public class CreateNamespace extends MasterRepo implements FateLogger {
 
   @Override
   public void undo(long tid, Master env) {
-    FateLogger.info("{}:\tUndo-ing CreateNamepace operation", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tReverting NAMESPACE_CREATE operation", FateTxId.formatTid(tid));
     // nothing to do, the namespace id was allocated!
     FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
   }

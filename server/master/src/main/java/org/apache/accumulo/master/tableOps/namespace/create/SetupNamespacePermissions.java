@@ -20,6 +20,7 @@ package org.apache.accumulo.master.tableOps.namespace.create;
 
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.security.NamespacePermission;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
@@ -40,7 +41,6 @@ class SetupNamespacePermissions extends MasterRepo implements FateLogger {
 
   @Override
   public Repo<Master> call(long tid, Master env) throws Exception {
-    String fateId = String.format("%016x", tid);
     // give all namespace permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
     for (NamespacePermission permission : NamespacePermission.values()) {
@@ -49,10 +49,13 @@ class SetupNamespacePermissions extends MasterRepo implements FateLogger {
             namespaceInfo.namespaceId, permission);
       } catch (ThriftSecurityException e) {
         LoggerFactory.getLogger(SetupNamespacePermissions.class).error("{}", e.getMessage(), e);
+        FateLogger.error("{}:\tException setting table permissions: {}", FateTxId.formatTid(tid),
+            e.getMessage());
         throw e;
       }
+      FateLogger.info("{}:\t\tGranting: {}", FateTxId.formatTid(tid), permission.name());
     }
-    FateLogger.info("{}:\tGranting namespace permissions:", fateId);
+    FateLogger.info("{}:\tGranting namespace permissions:", FateTxId.formatTid(tid));
 
     // setup permissions in zookeeper before table info in zookeeper
     // this way concurrent users will not get a spurious permission denied

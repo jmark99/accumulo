@@ -52,6 +52,8 @@ class SetupPermissions extends MasterRepo implements FateLogger {
               tableInfo.getTableId(), permission, tableInfo.getNamespaceId());
         } catch (ThriftSecurityException e) {
           LoggerFactory.getLogger(SetupPermissions.class).error("{}", e.getMessage(), e);
+          FateLogger.error("{}:\tException setting table permissions: {}", FateTxId.formatTid(tid),
+              e.getMessage());
           throw e;
         }
         FateLogger.info("{}:\t\tGranting: {}", FateTxId.formatTid(tid), permission.name());
@@ -69,8 +71,7 @@ class SetupPermissions extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) throws Exception {
     AuditedSecurityOperation.getInstance(env.getContext()).deleteTable(env.getContext().rpcCreds(),
         tableInfo.getTableId(), tableInfo.getNamespaceId());
-    FateLogger.info("{}:\tDeleting table id:{}", FateTxId.formatTid(tid),
-        tableInfo.getTableName());
+    FateLogger.info("{}:\tDeleting table id:{}", FateTxId.formatTid(tid), tableInfo.getTableName());
   }
 
 }

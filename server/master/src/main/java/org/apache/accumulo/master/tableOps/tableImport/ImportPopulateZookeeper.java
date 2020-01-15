@@ -82,7 +82,7 @@ class ImportPopulateZookeeper extends MasterRepo implements FateLogger {
       FateLogger.info("{}:\tAdding TableName {} and ID {} to ZooKeeper", FateTxId.formatTid(tid),
           tableInfo.tableName, tableInfo.tableId);
       Utils.checkTableDoesNotExist(env.getContext(), tableInfo.tableName, tableInfo.tableId,
-          TableOperation.CREATE, tid);
+          TableOperation.CREATE);
 
       String namespace = Tables.qualify(tableInfo.tableName).getFirst();
       NamespaceId namespaceId = Namespaces.getNamespaceId(env.getContext(), namespace);

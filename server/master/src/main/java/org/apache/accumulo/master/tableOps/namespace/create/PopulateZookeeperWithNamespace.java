@@ -22,6 +22,7 @@ import java.util.Map.Entry;
 
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
+import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.master.FateLogger;
@@ -62,7 +63,8 @@ class PopulateZookeeperWithNamespace extends MasterRepo implements FateLogger {
         NamespacePropUtil.setNamespaceProperty(master.getContext(), namespaceInfo.namespaceId,
             entry.getKey(), entry.getValue());
 
-      FateLogger.info("{}:\tPopulating zookeeper with namespace info", String.format("%016x", tid));
+      FateLogger.info("{}:\tPopulating zookeeper with namespace info: {}:{}",
+          FateTxId.formatTid(tid), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
 
       Tables.clearCache(master.getContext());
 
