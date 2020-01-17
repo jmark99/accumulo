@@ -47,6 +47,9 @@ public class RenameTable extends MasterRepo implements FateLogger {
   private String oldTableName;
   private String newTableName;
 
+  final private String ERROR_MSG1 = "Namespace in new table name does not match the old table name";
+  final private String ERROR_MSG2 = "Name changed while processing";
+
   @Override
   public long isReady(long tid, Master env) throws Exception {
     return Utils.reserveNamespace(env, namespaceId, tid, false, true, TableOperation.RENAME)
@@ -68,10 +71,11 @@ public class RenameTable extends MasterRepo implements FateLogger {
 
     // ensure no attempt is made to rename across namespaces
     if (newTableName.contains(".") && !namespaceId
-        .equals(Namespaces.getNamespaceId(master.getContext(), qualifiedNewTableName.getFirst())))
+        .equals(Namespaces.getNamespaceId(master.getContext(), qualifiedNewTableName.getFirst()))) {
+      FateLogger.info("{}:\t{}", FateTxId.formatTid(tid), ERROR_MSG1);
       throw new AcceptableThriftTableOperationException(tableId.canonical(), oldTableName,
-          TableOperation.RENAME, TableOperationExceptionType.INVALID_NAME,
-          "Namespace in new table name does not match the old table name");
+          TableOperation.RENAME, TableOperationExceptionType.INVALID_NAME, ERROR_MSG1);
+    }
 
     ZooReaderWriter zoo = master.getContext().getZooReaderWriter();
 
@@ -92,9 +96,9 @@ public class RenameTable extends MasterRepo implements FateLogger {
         if (currentName.equals(newName))
           return null; // assume in this case the operation is running again, so we are done
         if (!currentName.equals(oldName)) {
+          FateLogger.info("{}:\t{}", FateTxId.formatTid(tid), ERROR_MSG2);
           throw new AcceptableThriftTableOperationException(null, oldTableName,
-              TableOperation.RENAME, TableOperationExceptionType.NOTFOUND,
-              "Name changed while processing");
+              TableOperation.RENAME, TableOperationExceptionType.NOTFOUND, ERROR_MSG2);
         }
         return newName.getBytes(UTF_8);
       });
@@ -119,7 +123,7 @@ public class RenameTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, true);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
-    FateLogger.info("{}:\tUndo-ing Rename Table operation", FateTxId.formatTid(tid));
+    FateLogger.info("{}:\tReverting TABLE_RENAME operation", FateTxId.formatTid(tid));
     FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
   }
 

@@ -62,6 +62,7 @@ import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.core.util.ByteBufferUtil;
 import org.apache.accumulo.core.util.Validator;
 import org.apache.accumulo.core.volume.Volume;
+import org.apache.accumulo.fate.AdminUtil;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.ReadOnlyTStore.TStatus;
 import org.apache.accumulo.master.tableOps.ChangeTableState;
@@ -110,18 +111,20 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
       throws ThriftSecurityException, ThriftTableOperationException {
     authenticate(c);
 
-    FateLogger.info("{}: BEGIN Fate Transaction", FateTxId.formatTid(opid));
+    FateBegin(opid);
     switch (op) {
       case NAMESPACE_CREATE: {
         TableOperation tableOp = TableOperation.CREATE;
         validateArgumentCount(arguments, tableOp, 1);
         String namespace = validateNamespaceArgument(arguments.get(0), tableOp, null);
 
-        FateLogger.info("{}: Goal: Create Namespace '{}' ", FateTxId.formatTid(opid), namespace);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Create Namespace '%s'", namespace));
 
-        if (!master.security.canCreateNamespace(c))
+        if (!master.security.canCreateNamespace(c)) {
+          FatePermissionError(opid);
+          FateEnd(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+        }
 
         master.fate.seedTransaction(opid,
             new TraceRepo<>(new CreateNamespace(c.getPrincipal(), namespace, options)),
@@ -135,14 +138,15 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             Namespaces.NOT_DEFAULT.and(Namespaces.NOT_ACCUMULO));
         String newName = validateNamespaceArgument(arguments.get(1), tableOp, null);
 
-        FateLogger.info("{}: Goal: Rename Namespace from '{}' to '{}' ", FateTxId.formatTid(opid),
-            oldName, newName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Rename Namespace from '%s' to '%s' ", oldName, newName));
 
         NamespaceId namespaceId =
             ClientServiceHandler.checkNamespaceId(master.getContext(), oldName, tableOp);
-        if (!master.security.canRenameNamespace(c, namespaceId))
+        if (!master.security.canRenameNamespace(c, namespaceId)) {
+          FatePermissionError(opid);
+          FateEnd(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+        }
 
         master.fate.seedTransaction(opid,
             new TraceRepo<>(new RenameNamespace(namespaceId, oldName, newName)), autoCleanup);
@@ -154,13 +158,15 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String namespace = validateNamespaceArgument(arguments.get(0), tableOp,
             Namespaces.NOT_DEFAULT.and(Namespaces.NOT_ACCUMULO));
 
-        FateLogger.info("{}: Goal: Delete Namespace '{}' ", FateTxId.formatTid(opid), namespace);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Delete Namespace '%s'", namespace));
 
         NamespaceId namespaceId =
             ClientServiceHandler.checkNamespaceId(master.getContext(), namespace, tableOp);
-        if (!master.security.canDeleteNamespace(c, namespaceId))
+        if (!master.security.canDeleteNamespace(c, namespaceId)) {
+          FatePermissionError(opid);
+          FateEnd(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+        }
 
         master.fate.seedTransaction(opid, new TraceRepo<>(new DeleteNamespace(namespaceId)),
             autoCleanup);
