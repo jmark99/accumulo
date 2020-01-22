@@ -46,5 +46,6 @@ public interface FateLogger {
 
   default void FateError(long tid, String msg) {
     FateLogger.error("{}:\t{}", FateTxId.formatTid(tid), msg);
+    FateEnd(tid);
   }
 }

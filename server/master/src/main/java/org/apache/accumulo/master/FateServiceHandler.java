@@ -624,6 +624,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String dir = ByteBufferUtil.toString(arguments.get(1));
 
         FateGoal(opid, String.format("Import files from %s to table %s", dir, tableId));
+
         boolean setTime = Boolean.parseBoolean(ByteBufferUtil.toString(arguments.get(2)));
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
@@ -633,21 +634,26 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
           canBulkImport =
               master.security.canBulkImport(c, tableId, tableName, dir, null, namespaceId);
         } catch (ThriftSecurityException e) {
+          FateError(opid, "Security exception - table missing");
           throwIfTableMissingSecurityException(e, tableId, "", TableOperation.BULK_IMPORT);
           throw e;
         } catch (TableNotFoundException e) {
+          FateError(opid, "Table not found exception");
           throw new ThriftTableOperationException(tableId.canonical(), null,
               TableOperation.BULK_IMPORT, TableOperationExceptionType.NOTFOUND,
               "Table no longer exists");
         }
 
-        if (!canBulkImport)
+        if (!canBulkImport) {
+          FatePermissionError(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+        }
 
         master.fate.seedTransaction(opid,
             new TraceRepo<>(new PrepBulkImport(tableId, dir, setTime)), autoCleanup);
         break;
       default:
+        FateError(opid, "Unsupported operation requested");
         throw new UnsupportedOperationException();
     }
   }
@@ -797,8 +803,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
     try (FSDataOutputStream stream = master.getOutputStream(splitsPath)) {
       writeSplitsToFileSystem(stream, arguments, splitCount, splitOffset);
     } catch (IOException e) {
-      log.error("Error in FateServiceHandler while writing splits for opid: " + opidStr + ": "
-          + e.getMessage());
+      FateLogger.error("{}:\tError in FateServiceHandler while writing splits to file: {}",
+          FateTxId.formatTid(opid), e.getMessage());
       throw e;
     }
     return splitsPath;
