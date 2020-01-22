@@ -21,7 +21,6 @@ package org.apache.accumulo.master.tableOps.namespace.delete;
 import org.apache.accumulo.core.clientImpl.Tables;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.data.NamespaceId;
-import org.apache.accumulo.fate.Fate;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.FateLogger;

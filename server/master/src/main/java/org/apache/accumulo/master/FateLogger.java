@@ -18,10 +18,9 @@
  */
 package org.apache.accumulo.master;
 
+import org.apache.accumulo.fate.FateTxId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.accumulo.fate.FateTxId;
 
 public interface FateLogger {
   Logger FateLogger = LoggerFactory.getLogger(FateLogger.class);
@@ -39,12 +38,13 @@ public interface FateLogger {
     FateLogger.info("{}: Status:", FateTxId.formatTid(tid));
   }
 
-  default void FateError(long tid, String msg) {
-    FateLogger.error("{}:\t" + msg);
-  }
-
   default void FatePermissionError(long tid) {
     FateLogger.error("{}:\t" + "Insufficient permissions to perform operation",
-     FateTxId.formatTid(tid));
+        FateTxId.formatTid(tid));
+    FateEnd(tid);
+  }
+
+  default void FateError(long tid, String msg) {
+    FateLogger.error("{}:\t{}", FateTxId.formatTid(tid), msg);
   }
 }

@@ -62,7 +62,6 @@ import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.core.util.ByteBufferUtil;
 import org.apache.accumulo.core.util.Validator;
 import org.apache.accumulo.core.volume.Volume;
-import org.apache.accumulo.fate.AdminUtil;
 import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.ReadOnlyTStore.TStatus;
 import org.apache.accumulo.master.tableOps.ChangeTableState;
@@ -122,7 +121,6 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
 
         if (!master.security.canCreateNamespace(c)) {
           FatePermissionError(opid);
-          FateEnd(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
         }
 
@@ -144,7 +142,6 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             ClientServiceHandler.checkNamespaceId(master.getContext(), oldName, tableOp);
         if (!master.security.canRenameNamespace(c, namespaceId)) {
           FatePermissionError(opid);
-          FateEnd(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
         }
 
@@ -164,7 +161,6 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             ClientServiceHandler.checkNamespaceId(master.getContext(), namespace, tableOp);
         if (!master.security.canDeleteNamespace(c, namespaceId)) {
           FatePermissionError(opid);
-          FateEnd(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
         }
 
@@ -176,6 +172,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         TableOperation tableOp = TableOperation.CREATE;
         int SPLIT_OFFSET = 4; // offset where split data begins in arguments list
         if (arguments.size() < SPLIT_OFFSET) {
+          FateEnd(opid);
           throw new ThriftTableOperationException(null, null, tableOp,
               TableOperationExceptionType.OTHER,
               "Expected at least " + SPLIT_OFFSET + " arguments, saw :" + arguments.size());
@@ -189,9 +186,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         int splitCount = Integer.parseInt(ByteBufferUtil.toString(arguments.get(3)));
         validateArgumentCount(arguments, tableOp, SPLIT_OFFSET + splitCount);
 
-        FateLogger.info("{}: Goal: Create Table '{}' in {} mode with {} initial splits",
-            FateTxId.formatTid(opid), tableName, initialTableState.toString(), splitCount);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Create Table '%s' in %s mode with %s initial splits",
+            tableName, initialTableState.toString(), splitCount));
 
         String splitFile = null;
         String splitDirsFile = null;
@@ -200,6 +196,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             splitFile = writeSplitsToFile(opid, arguments, splitCount, SPLIT_OFFSET);
             splitDirsFile = createSplitDirsFile(opid);
           } catch (IOException e) {
+            FateEnd(opid);
             throw new ThriftTableOperationException(null, tableName, tableOp,
                 TableOperationExceptionType.OTHER,
                 "Exception thrown while writing splits to file system");
@@ -213,12 +210,15 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
           namespaceId =
               Namespaces.getNamespaceId(master.getContext(), Tables.qualify(tableName).getFirst());
         } catch (NamespaceNotFoundException e) {
+          FateEnd(opid);
           throw new ThriftTableOperationException(null, tableName, tableOp,
               TableOperationExceptionType.NAMESPACE_NOTFOUND, "");
         }
 
-        if (!master.security.canCreateTable(c, tableName, namespaceId))
+        if (!master.security.canCreateTable(c, tableName, namespaceId)) {
+          FatePermissionError(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+        }
 
         master.fate.seedTransaction(opid,
             new TraceRepo<>(new CreateTable(c.getPrincipal(), tableName, timeType, options,
@@ -249,9 +249,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
 
             });
 
-        FateLogger.info("{}: Goal: Rename Table '{}' to '{}'", FateTxId.formatTid(opid),
-            oldTableName, newTableName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Rename Table '%s' to '%s'", oldTableName, newTableName));
 
         TableId tableId =
             ClientServiceHandler.checkTableId(master.getContext(), oldTableName, tableOp);
@@ -262,6 +260,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
           canRename =
               master.security.canRenameTable(c, tableId, oldTableName, newTableName, namespaceId);
         } catch (ThriftSecurityException e) {
+          FateEnd(opid);
           throwIfTableMissingSecurityException(e, tableId, oldTableName, TableOperation.RENAME);
           throw e;
         }
@@ -286,8 +285,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         TableId srcTableId = validateTableIdArgument(arguments.get(0), tableOp, CAN_CLONE);
         String tableName = validateTableNameArgument(arguments.get(1), tableOp, NOT_SYSTEM);
 
-        FateLogger.info("{}: Goal: Clone Table '{}'", FateTxId.formatTid(opid), tableName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Clone Table '%s'", tableName));
 
         NamespaceId namespaceId;
         try {
@@ -341,8 +339,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         validateArgumentCount(arguments, tableOp, 1);
         String tableName = validateTableNameArgument(arguments.get(0), tableOp, NOT_SYSTEM);
 
-        FateLogger.info("{}: Goal: Delete Table '{}'", FateTxId.formatTid(opid), tableName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Delete Table '%s'", tableName));
 
         final TableId tableId =
             ClientServiceHandler.checkTableId(master.getContext(), tableName, tableOp);
@@ -368,9 +365,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         final TableId tableId = validateTableIdArgument(arguments.get(0), tableOp, NOT_ROOT_ID);
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Bring Table Online: '{}'", FateTxId.formatTid(opid),
-            tableId.canonical());
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Bring Table Online: '%s'", tableId.canonical()));
 
         final boolean canOnlineOfflineTable;
         try {
@@ -394,9 +389,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         final TableId tableId = validateTableIdArgument(arguments.get(0), tableOp, NOT_ROOT_ID);
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Take Table Offline: '{}'", FateTxId.formatTid(opid),
-            tableId.canonical());
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Take Table Offline: '%s'", tableId.canonical()));
 
         final boolean canOnlineOfflineTable;
         try {
@@ -421,9 +414,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         Text startRow = ByteBufferUtil.toText(arguments.get(1));
         Text endRow = ByteBufferUtil.toText(arguments.get(2));
 
-        FateLogger.info("{}: Goal: Perform Table Merge: '{}'; startrow: {}; endrow: {}",
-            FateTxId.formatTid(opid), tableName, startRow, endRow);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Perform Table Merge: '%s'; startrow: %s; endrow: {}",
+            tableName, startRow, endRow));
 
         final TableId tableId =
             ClientServiceHandler.checkTableId(master.getContext(), tableName, tableOp);
@@ -453,8 +445,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         Text startRow = ByteBufferUtil.toText(arguments.get(1));
         Text endRow = ByteBufferUtil.toText(arguments.get(2));
 
-        FateLogger.info("{}: Goal: Table Delete Range: '{}'", FateTxId.formatTid(opid), tableName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Table Delete Range: '%s'", tableName));
 
         final TableId tableId =
             ClientServiceHandler.checkTableId(master.getContext(), tableName, tableOp);
@@ -485,9 +476,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String failDir = ByteBufferUtil.toString(arguments.get(2));
         boolean setTime = Boolean.parseBoolean(ByteBufferUtil.toString(arguments.get(3)));
 
-        FateLogger.info("{}: Goal: (Legacy) Import files from {} to table {}",
-            FateTxId.formatTid(opid), dir, tableName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid,
+            String.format("Goal: (Legacy) Import files from %s to table %s", dir, tableName));
 
         final TableId tableId =
             ClientServiceHandler.checkTableId(master.getContext(), tableName, tableOp);
@@ -526,9 +516,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             CompactionStrategyConfigUtil.decode(ByteBufferUtil.toBytes(arguments.get(4)));
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Compact Table '{}'", FateTxId.formatTid(opid),
-            tableId.canonical());
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Compact Table '%s'", tableId.canonical()));
 
         final boolean canCompact;
         try {
@@ -551,9 +539,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         TableId tableId = validateTableIdArgument(arguments.get(0), tableOp, null);
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Cancel Compactions for Table '{}'", FateTxId.formatTid(opid),
-            tableId.canonical());
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Cancel Compactions for Table '%s'", tableId.canonical()));
 
         final boolean canCancelCompact;
         try {
@@ -577,8 +563,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String exportDir = ByteBufferUtil.toString(arguments.get(1));
         NamespaceId namespaceId;
 
-        FateLogger.info("{}: Goal: Table Import '{}'", FateTxId.formatTid(opid), tableName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Table Import '%s'", tableName));
 
         try {
           namespaceId =
@@ -614,8 +599,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             ClientServiceHandler.checkTableId(master.getContext(), tableName, tableOp);
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateLogger.info("{}: Goal: Table Export '{}'", FateTxId.formatTid(opid), tableName);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
+        FateGoal(opid, String.format("Table Export '%s'", tableName));
 
         final boolean canExport;
         try {
@@ -639,12 +623,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         TableId tableId = validateTableIdArgument(arguments.get(0), tableOp, NOT_ROOT_ID);
         String dir = ByteBufferUtil.toString(arguments.get(1));
 
-        FateLogger.info("{}: Goal: Import files from {} to table {}", FateTxId.formatTid(opid), dir,
-            tableId);
-        FateLogger.info("{}: Status:", FateTxId.formatTid(opid));
-
+        FateGoal(opid, String.format("Import files from %s to table %s", dir, tableId));
         boolean setTime = Boolean.parseBoolean(ByteBufferUtil.toString(arguments.get(2)));
-
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
         final boolean canBulkImport;
