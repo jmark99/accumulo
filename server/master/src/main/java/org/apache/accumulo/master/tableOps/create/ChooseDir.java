@@ -54,7 +54,7 @@ class ChooseDir extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
     if (tableInfo.getInitialSplitSize() > 0) {
-      FateLogger.info("{}:\tCreating split directories", FateTxId.formatTid(tid));
+      FateInfo(tid, "Creating split directories");
       createTableDirectoriesInfo(master);
     }
     return new PopulateMetadata(tableInfo);
@@ -65,8 +65,7 @@ class ChooseDir extends MasterRepo implements FateLogger {
     VolumeManager fs = master.getFileSystem();
     fs.deleteRecursively(new Path(tableInfo.getSplitDirsFile()));
     if (tableInfo.getSplitDirsFile().length() > 0) {
-      FateLogger.info("{}:\tDeleting split directories file '{}'", FateTxId.formatTid(tid),
-          tableInfo.getSplitDirsFile());
+      FateInfo(tid, String.format("Deleting split directories: %s", tableInfo.getSplitDirsFile()));
     }
   }
 

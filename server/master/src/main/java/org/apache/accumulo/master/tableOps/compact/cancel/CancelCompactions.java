@@ -65,8 +65,7 @@ public class CancelCompactions extends MasterRepo implements FateLogger {
     String[] tokens = cvs.split(",");
     final long flushID = Long.parseLong(tokens[0]);
 
-    FateLogger.info("{}:\tUpdating zookeeper: {} {} {}", FateTxId.formatTid(tid), cvs, tokens[0],
-        flushID);
+    FateInfo(tid, "Updating zookeeper");
     zoo.mutate(zCancelID, null, null, new Mutator() {
       @Override
       public byte[] mutate(byte[] currentValue) {
@@ -86,7 +85,7 @@ public class CancelCompactions extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, false);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
-    FateLogger.info("{}:\tUndo-ing CANCEL_COMPACTION operation", FateTxId.formatTid(tid));
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateInfo(tid, "Reverting TABLE_CANCEL_COMPACT operation");
+    FateEnd(tid);
   }
 }

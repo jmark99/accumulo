@@ -29,9 +29,20 @@ public interface FateLogger {
     FateLogger.info("{}: BEGIN Fate Transaction", FateTxId.formatTid(tid));
   }
 
+  default void FateInfo(long tid, String msg) {
+    FateLogger.info("{}:   {}", FateTxId.formatTid(tid), msg);
+  }
+
   default void FateEnd(long tid) {
     FateLogger.info("{}: END Fate Transaction", FateTxId.formatTid(tid));
+    FateLogger.info("");
   }
+
+  default void FateEnd(long tid, String msg) {
+    FateLogger.info("{}:   {}", FateTxId.formatTid(tid), msg);
+    FateLogger.info("{}: END Fate Transaction", FateTxId.formatTid(tid));
+  }
+
 
   default void FateGoal(long tid, String msg) {
     FateLogger.info("{}: Goal: {}", FateTxId.formatTid(tid), msg);
@@ -39,13 +50,12 @@ public interface FateLogger {
   }
 
   default void FatePermissionError(long tid) {
-    FateLogger.error("{}:\t" + "Insufficient permissions to perform operation",
-        FateTxId.formatTid(tid));
+    FateLogger.error("{}:   Insufficient permissions to perform operation", FateTxId.formatTid(tid));
     FateEnd(tid);
   }
 
   default void FateError(long tid, String msg) {
-    FateLogger.error("{}:\t{}", FateTxId.formatTid(tid), msg);
+    FateLogger.error("{}:   {}", FateTxId.formatTid(tid), msg);
     FateEnd(tid);
   }
 }

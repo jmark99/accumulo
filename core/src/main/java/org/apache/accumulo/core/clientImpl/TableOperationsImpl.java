@@ -340,7 +340,7 @@ public class TableOperationsImpl extends TableOperationsHelper {
     }
   }
 
-  String doFateOperation(FateOperation op, List<ByteBuffer> args, Map<String,String> opts,
+  public String doFateOperation(FateOperation op, List<ByteBuffer> args, Map<String,String> opts,
       String tableOrNamespaceName)
       throws AccumuloSecurityException, TableExistsException, TableNotFoundException,
       AccumuloException, NamespaceExistsException, NamespaceNotFoundException {

@@ -59,7 +59,7 @@ public class DeleteTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, true);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
-    FateLogger.info("{}:\tUndo-ing delete namespace operation", FateTxId.formatTid(tid));
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateInfo(tid, "Reverting TABLE_DELETE operation");
+    FateEnd(tid);
   }
 }

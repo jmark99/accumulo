@@ -55,26 +55,23 @@ class NamespaceCleanUp extends MasterRepo implements FateLogger {
     try {
       master.getTableManager().removeNamespace(namespaceId);
     } catch (Exception e) {
-      FateLogger.error("{}:\tFailed to find namespace in zookeeper", FateTxId.formatTid(tid), e);
+      FateError(tid, "Failed to find namespace in zookeeper");
     }
     Tables.clearCache(master.getContext());
-    FateLogger.info("{}:\tRemoving namespace with id {} from ZooKeeper", FateTxId.formatTid(tid),
-        namespaceId);
-
+    FateInfo(tid, String.format("Removing namespace with id:%s from ZooKeeper"));
     // remove any permissions associated with this namespace
     try {
       AuditedSecurityOperation.getInstance(master.getContext())
           .deleteNamespace(master.getContext().rpcCreds(), namespaceId);
     } catch (ThriftSecurityException e) {
-      FateLogger.error("{}:\t{}", FateTxId.formatTid(tid), e.getMessage(), e);
+      FateError(tid, e.getMessage());
     }
-    FateLogger.info("{}:\tRemoving associated namespace permissions", FateTxId.formatTid(tid));
+    FateInfo(tid, "Removing namespace permissions");
 
     Utils.unreserveNamespace(master, namespaceId, tid, true);
 
-    FateLogger.info("{}:\tDeleted namespace with id {}", FateTxId.formatTid(tid), namespaceId);
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
-
+    FateInfo(tid, String.format("Deleted namespace with id:%s", namespaceId));
+    FateEnd(tid);
     return null;
   }
 

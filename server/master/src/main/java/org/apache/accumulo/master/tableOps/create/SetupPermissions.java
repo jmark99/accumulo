@@ -45,20 +45,18 @@ class SetupPermissions extends MasterRepo implements FateLogger {
     // give all table permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
     if (!tableInfo.getUser().equals(env.getContext().getCredentials().getPrincipal())) {
-      FateLogger.info("{}:\tSetting table permissions", FateTxId.formatTid(tid));
+      FateInfo(tid, "Setting table permissions");
       for (TablePermission permission : TablePermission.values()) {
         try {
           security.grantTablePermission(env.getContext().rpcCreds(), tableInfo.getUser(),
               tableInfo.getTableId(), permission, tableInfo.getNamespaceId());
         } catch (ThriftSecurityException e) {
           LoggerFactory.getLogger(SetupPermissions.class).error("{}", e.getMessage(), e);
-          FateLogger.error("{}:\tException setting table permissions: {}", FateTxId.formatTid(tid),
-              e.getMessage());
+          FateError(tid, "Exception setting table permissions");
           throw e;
         }
-        FateLogger.info("{}:\t\tGranting: {}", FateTxId.formatTid(tid), permission.name());
       }
-      FateLogger.info("{}:\tCompleted setting permissions.", FateTxId.formatTid(tid));
+      FateInfo(tid, "Permissions set");
     }
 
     // setup permissions in zookeeper before table info in zookeeper
@@ -71,7 +69,6 @@ class SetupPermissions extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) throws Exception {
     AuditedSecurityOperation.getInstance(env.getContext()).deleteTable(env.getContext().rpcCreds(),
         tableInfo.getTableId(), tableInfo.getNamespaceId());
-    FateLogger.info("{}:\tDeleting table id:{}", FateTxId.formatTid(tid), tableInfo.getTableName());
   }
 
 }

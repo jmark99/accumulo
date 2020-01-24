@@ -49,13 +49,11 @@ class SetupNamespacePermissions extends MasterRepo implements FateLogger {
             namespaceInfo.namespaceId, permission);
       } catch (ThriftSecurityException e) {
         LoggerFactory.getLogger(SetupNamespacePermissions.class).error("{}", e.getMessage(), e);
-        FateLogger.error("{}:\tException setting table permissions: {}", FateTxId.formatTid(tid),
-            e.getMessage());
+        FateError(tid, "Exception setting table permissions");
         throw e;
       }
-      FateLogger.info("{}:\t\tGranting: {}", FateTxId.formatTid(tid), permission.name());
     }
-    FateLogger.info("{}:\tGranting namespace permissions:", FateTxId.formatTid(tid));
+    FateInfo(tid, "Namespace permissions set");
 
     // setup permissions in zookeeper before table info in zookeeper
     // this way concurrent users will not get a spurious permission denied

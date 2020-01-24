@@ -102,7 +102,7 @@ public class CompactRange extends MasterRepo implements FateLogger {
     ZooReaderWriter zoo = env.getContext().getZooReaderWriter();
     byte[] cid;
     try {
-      FateLogger.info("{}:\tMutating table", FateTxId.formatTid(tid));
+      FateInfo(tid, "Mutating table");
       cid = zoo.mutate(zTablePath, null, null, new Mutator() {
         @Override
         public byte[] mutate(byte[] currentValue) throws Exception {
@@ -120,6 +120,9 @@ public class CompactRange extends MasterRepo implements FateLogger {
             log.debug("txidString : {}", txidString);
             log.debug("tokens[{}] : {}", i, tokens[i]);
 
+            FateInfo(tid, "Another compaction with iterators and/or a compaction strategy is "
+                + "running");
+            FateEnd(tid);
             throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
                 TableOperation.COMPACT, TableOperationExceptionType.OTHER,
                 "Another compaction with iterators and/or a compaction strategy is running");
@@ -142,6 +145,7 @@ public class CompactRange extends MasterRepo implements FateLogger {
       return new CompactionDriver(Long.parseLong(new String(cid, UTF_8).split(",")[0]), namespaceId,
           tableId, startRow, endRow);
     } catch (NoNodeException nne) {
+      FateEnd(tid);
       throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
           TableOperation.COMPACT, TableOperationExceptionType.NOTFOUND, null);
     }
@@ -185,8 +189,8 @@ public class CompactRange extends MasterRepo implements FateLogger {
     } finally {
       Utils.unreserveNamespace(env, namespaceId, tid, false);
       Utils.unreserveTable(env, tableId, tid, false);
-      FateLogger.info("{}:\tUndo-ing TABLE_COMPACT operation", FateTxId.formatTid(tid));
-      FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+      FateInfo(tid, "Reverting TABLE_COMPACT operation");
+      FateEnd(tid);
     }
   }
 

@@ -60,8 +60,8 @@ class CloneZookeeper extends MasterRepo implements FateLogger {
     Utils.getTableNameLock().lock();
     try {
       // write tableName & tableId to zookeeper
-      FateLogger.info("{}:\tWriting tableName '{} ({})' to zookeeper", FateTxId.formatTid(tid),
-          cloneInfo.tableName, cloneInfo.tableId);
+      FateInfo(tid, String.format("Writing info for %s:%s to zookeeper", cloneInfo.tableName,
+          cloneInfo.tableId));
       Utils.checkTableDoesNotExist(environment.getContext(), cloneInfo.tableName, cloneInfo.tableId,
           TableOperation.CLONE);
 

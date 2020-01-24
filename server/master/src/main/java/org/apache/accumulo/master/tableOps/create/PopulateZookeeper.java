@@ -67,8 +67,8 @@ class PopulateZookeeper extends MasterRepo implements FateLogger {
 
       Tables.clearCache(master.getContext());
 
-      FateLogger.info("{}:\tPopulating zookeeper with table info: {}:{}", FateTxId.formatTid(tid),
-          tableInfo.getTableName(), tableInfo.getTableId());
+      FateInfo(tid, String.format("Populating zookeeper with table info for %s:%s",
+          tableInfo.getTableName(), tableInfo.getTableId()));
 
       return new ChooseDir(tableInfo);
     } finally {

@@ -45,15 +45,15 @@ public class DeleteNamespace extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master environment) {
     environment.getEventCoordinator().event("deleting namespace %s ", namespaceId);
-    FateLogger.info("{}:\tDeleting namespace {}", FateTxId.formatTid(tid), namespaceId);
+    FateInfo(tid, String.format("Deleting namespace id:%s", namespaceId));
     return new NamespaceCleanUp(namespaceId);
   }
 
   @Override
   public void undo(long tid, Master environment) {
     Utils.unreserveNamespace(environment, namespaceId, tid, true);
-    FateLogger.info("{}:\tReverting NAMESPACE_DELETE operation", FateTxId.formatTid(tid));
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateInfo(tid, "Reverting NAMESPACE_DELETE operation");
+    FateEnd(tid);
   }
 
 }

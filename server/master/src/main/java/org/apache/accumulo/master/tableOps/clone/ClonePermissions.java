@@ -50,13 +50,14 @@ class ClonePermissions extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(long tid, Master environment) throws Exception {
     // give all table permissions to the creator
-    FateLogger.info("{}:\tGranting table permissions to creator", FateTxId.formatTid(tid));
+    FateInfo(tid, "Granting table permissions to creator");
     for (TablePermission permission : TablePermission.values()) {
       try {
         AuditedSecurityOperation.getInstance(environment.getContext()).grantTablePermission(
             environment.getContext().rpcCreds(), cloneInfo.user, cloneInfo.tableId, permission,
             cloneInfo.namespaceId);
       } catch (ThriftSecurityException e) {
+        FateError(tid, "Error granting permissions to cloned table");
         LoggerFactory.getLogger(ClonePermissions.class).error("{}", e.getMessage(), e);
         throw e;
       }
@@ -68,9 +69,10 @@ class ClonePermissions extends MasterRepo implements FateLogger {
     try {
       return new CloneZookeeper(cloneInfo, environment.getContext());
     } catch (NamespaceNotFoundException e) {
+      String errorMsg = "Namespace for target table not found";
+      FateError(tid, errorMsg);
       throw new AcceptableThriftTableOperationException(null, cloneInfo.tableName,
-          TableOperation.CLONE, TableOperationExceptionType.NAMESPACE_NOTFOUND,
-          "Namespace for target table not found");
+          TableOperation.CLONE, TableOperationExceptionType.NAMESPACE_NOTFOUND, errorMsg);
     }
   }
 

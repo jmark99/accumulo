@@ -155,7 +155,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         String namespace = validateNamespaceArgument(arguments.get(0), tableOp,
             Namespaces.NOT_DEFAULT.and(Namespaces.NOT_ACCUMULO));
 
-        FateGoal(opid, String.format("Delete Namespace '%s'", namespace));
+        FateGoal(opid, String.format("Delete Namespace id:%s", namespace));
 
         NamespaceId namespaceId =
             ClientServiceHandler.checkNamespaceId(master.getContext(), namespace, tableOp);
@@ -172,7 +172,6 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         TableOperation tableOp = TableOperation.CREATE;
         int SPLIT_OFFSET = 4; // offset where split data begins in arguments list
         if (arguments.size() < SPLIT_OFFSET) {
-          FateEnd(opid);
           throw new ThriftTableOperationException(null, null, tableOp,
               TableOperationExceptionType.OTHER,
               "Expected at least " + SPLIT_OFFSET + " arguments, saw :" + arguments.size());
@@ -196,13 +195,12 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             splitFile = writeSplitsToFile(opid, arguments, splitCount, SPLIT_OFFSET);
             splitDirsFile = createSplitDirsFile(opid);
           } catch (IOException e) {
-            FateEnd(opid);
+            FateEnd(opid, "Failed to write splits to file system");
             throw new ThriftTableOperationException(null, tableName, tableOp,
                 TableOperationExceptionType.OTHER,
                 "Exception thrown while writing splits to file system");
           }
-          FateLogger.info("{}:\tWriting splits to {}/{}", FateTxId.formatTid(opid), splitDirsFile,
-              splitFile);
+          FateLogger.info("{}:\tWriting splits to {}", FateTxId.formatTid(opid), splitFile);
         }
         NamespaceId namespaceId;
 
@@ -210,7 +208,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
           namespaceId =
               Namespaces.getNamespaceId(master.getContext(), Tables.qualify(tableName).getFirst());
         } catch (NamespaceNotFoundException e) {
-          FateEnd(opid);
+          FateEnd(opid, "Namespace not found");
           throw new ThriftTableOperationException(null, tableName, tableOp,
               TableOperationExceptionType.NAMESPACE_NOTFOUND, "");
         }
@@ -285,13 +283,14 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
         TableId srcTableId = validateTableIdArgument(arguments.get(0), tableOp, CAN_CLONE);
         String tableName = validateTableNameArgument(arguments.get(1), tableOp, NOT_SYSTEM);
 
-        FateGoal(opid, String.format("Clone Table '%s'", tableName));
+        FateGoal(opid, String.format("Clone Table '%s:%s'", tableName, srcTableId));
 
         NamespaceId namespaceId;
         try {
           namespaceId =
               Namespaces.getNamespaceId(master.getContext(), Tables.qualify(tableName).getFirst());
         } catch (NamespaceNotFoundException e) {
+          FateError(opid, "Namespace not found");
           // shouldn't happen, but possible once cloning between namespaces is supported
           throw new ThriftTableOperationException(null, tableName, tableOp,
               TableOperationExceptionType.NAMESPACE_NOTFOUND, "");
@@ -302,12 +301,15 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
           canCloneTable =
               master.security.canCloneTable(c, srcTableId, tableName, namespaceId, namespaceId);
         } catch (ThriftSecurityException e) {
+          FateError(opid, "Table does not exist");
           throwIfTableMissingSecurityException(e, srcTableId, null, TableOperation.CLONE);
           throw e;
         }
 
-        if (!canCloneTable)
+        if (!canCloneTable) {
+          FatePermissionError(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+        }
 
         Map<String,String> propertiesToSet = new HashMap<>();
         Set<String> propertiesToExclude = new HashSet<>();
@@ -320,6 +322,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
           }
 
           if (!TablePropUtil.isPropertyValid(entry.getKey(), entry.getValue())) {
+            FateError(opid, "Property or value not valid");
             throw new ThriftTableOperationException(null, tableName, tableOp,
                 TableOperationExceptionType.OTHER,
                 "Property or value not valid " + entry.getKey() + "=" + entry.getValue());
@@ -516,18 +519,21 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
             CompactionStrategyConfigUtil.decode(ByteBufferUtil.toBytes(arguments.get(4)));
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
 
-        FateGoal(opid, String.format("Compact Table '%s'", tableId.canonical()));
+        FateGoal(opid, String.format("Compact Table with id:%s", tableId.canonical()));
 
         final boolean canCompact;
         try {
           canCompact = master.security.canCompact(c, tableId, namespaceId);
         } catch (ThriftSecurityException e) {
+          FateError(opid, "Table missing exception");
           throwIfTableMissingSecurityException(e, tableId, null, TableOperation.COMPACT);
           throw e;
         }
 
-        if (!canCompact)
+        if (!canCompact) {
+          FatePermissionError(opid);
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+        }
 
         master.fate.seedTransaction(opid, new TraceRepo<>(new CompactRange(namespaceId, tableId,
             startRow, endRow, iterators, compactionStrategy)), autoCleanup);
@@ -803,8 +809,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
     try (FSDataOutputStream stream = master.getOutputStream(splitsPath)) {
       writeSplitsToFileSystem(stream, arguments, splitCount, splitOffset);
     } catch (IOException e) {
-      FateLogger.error("{}:\tError in FateServiceHandler while writing splits to file: {}",
-          FateTxId.formatTid(opid), e.getMessage());
+      FateError(opid, String.format("Error in FateServiceHandler while writing splits to file: "
+          + "%s", e.getMessage()));
       throw e;
     }
     return splitsPath;
