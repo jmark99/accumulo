@@ -16,26 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.accumulo.core.util;
+package org.apache.accumulo.core.metadata;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.hadoop.fs.Path;
 
-public class Once implements Runnable {
+/**
+ * Utility class for validation of metadata tablet files.
+ */
+public class TabletFileUtil {
 
-  private final AtomicBoolean hasRun = new AtomicBoolean(false);
-  private final Runnable action;
-
-  public Once(Runnable action) {
-    this.action = action;
-  }
-
-  @Override
-  public void run() {
-    if (hasRun.get())
-      return;
-
-    if (hasRun.compareAndSet(false, true)) {
-      action.run();
+  /**
+   * Validate if string is a valid path. Return normalized string or throw exception if not valid.
+   * This was added to facilitate more use of TabletFile over String but this puts the validation in
+   * one location in the case where TabletFile can't be used.
+   */
+  public static String validate(String path) {
+    Path p = new Path(path);
+    if (p.toUri().getScheme() == null) {
+      throw new IllegalArgumentException("Invalid path provided, no scheme in " + path);
     }
+    return p.toString();
   }
 }
