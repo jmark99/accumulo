@@ -200,7 +200,7 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
                 TableOperationExceptionType.OTHER,
                 "Exception thrown while writing splits to file system");
           }
-          FateLogger.info("{}:\tWriting splits to {}", FateTxId.formatTid(opid), splitFile);
+          FateInfo(opid, String.format("Writing splits to %s", splitFile));
         }
         NamespaceId namespaceId;
 
@@ -499,8 +499,8 @@ class FateServiceHandler implements FateService.Iface, FateLogger {
           throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
 
         master.updateBulkImportStatus(dir, BulkImportState.INITIAL);
-        FateLogger.info("{}:\tUpdating bulk import (legacy) status to {}", FateTxId.formatTid(opid),
-            BulkImportState.INITIAL);
+        FateInfo(opid, String.format("Updating bulk import (legacy) status to %s",
+            BulkImportState.INITIAL));
         master.fate.seedTransaction(opid,
             new TraceRepo<>(new org.apache.accumulo.master.tableOps.bulkVer1.BulkImport(tableId,
                 dir, failDir, setTime)),

@@ -81,7 +81,7 @@ public class ImportTable extends MasterRepo implements FateLogger {
     Utils.getIdLock().lock();
     try {
       tableInfo.tableId = Utils.getNextId(tableInfo.tableName, env.getContext(), TableId::of);
-      FateLogger.info("{}:\tReserving Table ID", FateTxId.formatTid(tid));
+      FateInfo(tid, String.format("Reserving table id:%s", tableInfo.tableId));
       return new ImportSetupPermissions(tableInfo);
     } finally {
       Utils.getIdLock().unlock();
@@ -134,7 +134,7 @@ public class ImportTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) throws Exception {
     Utils.unreserveHdfsDirectory(env, new Path(tableInfo.exportDir).toString(), tid);
     Utils.unreserveNamespace(env, tableInfo.namespaceId, tid, false);
-    FateLogger.info("{}:\tUndo-ing TABLE_IMPORT operation", String.format("%016x", tid));
-    FateLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    FateInfo(tid, "Reverting TABLE_IMPORT operation");
+    FateEnd(tid);
   }
 }

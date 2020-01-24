@@ -72,7 +72,7 @@ class MapImportFileNames extends MasterRepo implements FateLogger {
 
       for (FileStatus fileStatus : files) {
         String fileName = fileStatus.getPath().getName();
-        FateLogger.info("{}:\tfilename {}", FateTxId.formatTid(tid), fileStatus.getPath());
+        FateInfo(tid, String.format("filename: %s", fileStatus.getPath()));
         String[] sa = fileName.split("\\.");
         String extension = "";
         if (sa.length > 1) {

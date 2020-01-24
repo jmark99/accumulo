@@ -93,7 +93,7 @@ class PopulateMetadataTable extends MasterRepo implements FateLogger {
     BatchWriter mbw = null;
     ZipInputStream zis = null;
 
-    FateLogger.info("{}:\tPopulate metadata table", FateTxId.formatTid(tid));
+    FateInfo(tid, "Populate metadata table");
     try {
       VolumeManager fs = master.getFileSystem();
 
@@ -103,7 +103,7 @@ class PopulateMetadataTable extends MasterRepo implements FateLogger {
 
       Map<String,String> fileNameMappings = readMappingFile(fs, tableInfo);
 
-      FateLogger.info("{}:\timportDir is {}", FateTxId.formatTid(tid), tableInfo.importDir);
+      FateInfo(tid, String.format("importDir: %s", tableInfo.importDir));
 
       // This is a directory already prefixed with proper volume information e.g.
       // hdfs://localhost:8020/path/to/accumulo/tables/...

@@ -22,12 +22,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
-import org.apache.accumulo.fate.FateTxId;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.fate.zookeeper.ZooLock;
 import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
-import org.apache.accumulo.master.FateLogger;
 import org.apache.accumulo.master.Master;
 import org.apache.accumulo.master.tableOps.MasterRepo;
 import org.apache.accumulo.server.master.LiveTServerSet.TServerConnection;
@@ -36,7 +34,7 @@ import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ShutdownTServer extends MasterRepo implements FateLogger {
+public class ShutdownTServer extends MasterRepo {
 
   private static final long serialVersionUID = 1L;
   private static final Logger log = LoggerFactory.getLogger(ShutdownTServer.class);
@@ -64,10 +62,9 @@ public class ShutdownTServer extends MasterRepo implements FateLogger {
         try {
           TabletServerStatus status = connection.getTableMap(false);
           if (status.tableMap != null && status.tableMap.isEmpty()) {
-            FateLogger.info("{}:\ttablet server hosts no tablets {}", FateTxId.formatTid(tid),
-                server);
+            log.info("tablet server hosts no tablets {}", server);
             connection.halt(master.getMasterLock());
-            FateLogger.info("{}:\ttablet server asked to halt {}", FateTxId.formatTid(tid), server);
+            log.info("tablet server asked to halt {}", server);
             return 0;
           }
         } catch (TTransportException ex) {

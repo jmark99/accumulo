@@ -69,23 +69,22 @@ public class TableRangeOp extends MasterRepo implements FateLogger {
   public Repo<Master> call(long tid, Master env) throws Exception {
 
     if (RootTable.ID.equals(tableId) && Operation.MERGE.equals(op)) {
-      log.warn("Attempt to merge tablets for {} does nothing. It is not splittable.",
-          RootTable.NAME);
-      FateLogger.info("{}:\tAttempting to merge tablets for {} does nothing. It is not splittable.",
-          FateTxId.formatTid(tid), RootTable.NAME);
+      FateWarn(tid, String.format("Attempting to merge tablets for %s does nothing. It is not "
+          + "splittable", RootTable.NAME));
     }
 
     Text start = startRow.length == 0 ? null : new Text(startRow);
     Text end = endRow.length == 0 ? null : new Text(endRow);
 
-    FateLogger.info("{}:\tSetting start row to {}", FateTxId.formatTid(tid), start);
-    FateLogger.info("{}:\tSetting end row to {}", FateTxId.formatTid(tid), end);
+    FateInfo(tid, "Setting start and end row");
 
     if (start != null && end != null)
-      if (start.compareTo(end) >= 0)
+      if (start.compareTo(end) >= 0) {
+        FateWarn(tid, "Bad range supplied");
         throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
             TableOperation.MERGE, TableOperationExceptionType.BAD_RANGE,
             "start row must be less than end row");
+      }
 
     env.mustBeOnline(tableId);
 
@@ -108,8 +107,7 @@ public class TableRangeOp extends MasterRepo implements FateLogger {
     env.clearMergeState(tableId);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
     Utils.unreserveTable(env, tableId, tid, true);
-    FateLogger.info("{}:\tUndo-ing {} operation", FateTxId.formatTid(tid), op.name());
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid, "Reverting TABLE_MERGE operation");
   }
 
 }

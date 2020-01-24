@@ -139,7 +139,7 @@ class WriteExportFiles extends MasterRepo implements FateLogger {
     Utils.unreserveNamespace(master, tableInfo.namespaceID, tid, false);
     Utils.unreserveTable(master, tableInfo.tableID, tid, false);
     Utils.unreserveHdfsDirectory(master, new Path(tableInfo.exportDir).toString(), tid);
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid);
     return null;
   }
 
@@ -152,7 +152,7 @@ class WriteExportFiles extends MasterRepo implements FateLogger {
   public static void exportTable(final long fateId, VolumeManager fs, ServerContext context,
       String tableName, TableId tableID, String exportDir) throws Exception {
 
-    FateLogger.info("{}:\tExporting table {} {} to directory {}", String.format("%016x", fateId),
+    FateLogger.info("{}:   Exporting table {} {} to directory {}", FateTxId.formatTid(fateId),
         tableName, tableID, exportDir);
     fs.mkdirs(new Path(exportDir));
     Path exportMetaFilePath = fs.getVolumeByPath(new Path(exportDir)).getFileSystem()

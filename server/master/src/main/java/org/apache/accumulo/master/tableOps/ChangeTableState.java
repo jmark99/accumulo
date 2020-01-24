@@ -63,9 +63,8 @@ public class ChangeTableState extends MasterRepo implements FateLogger {
     Utils.unreserveTable(env, tableId, tid, true);
     LoggerFactory.getLogger(ChangeTableState.class).debug("Changed table state {} {}", tableId, ts);
     env.getEventCoordinator().event("Set table state of %s to %s", tableId, ts);
-    FateLogger.info("{}:\tSetting table state of {} to {}", FateTxId.formatTid(tid), tableId, ts);
-
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateInfo(tid, String.format("Setting table state of %s to %s", tableId, ts));
+    FateEnd(tid);
     return null;
   }
 
@@ -73,7 +72,6 @@ public class ChangeTableState extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, namespaceId, tid, false);
     Utils.unreserveTable(env, tableId, tid, true);
-    FateLogger.info("{}:\tUndo-ing {} operation", FateTxId.formatTid(tid), top.name());
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid, String.format("Reverting %s operation", top.toString()));
   }
 }

@@ -79,8 +79,7 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
           return newName.getBytes();
         }
       });
-      FateLogger.info("{}:\tUpdating zookeeper with new namespace info: {}",
-          FateTxId.formatTid(tid), tap);
+      FateInfo(tid, String.format("Updating zookeeper with new namespace info: %s", tap));
 
       Tables.clearCache(master.getContext());
     } finally {
@@ -91,17 +90,15 @@ public class RenameNamespace extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(RenameNamespace.class).debug("Renamed namespace {} {} {}", namespaceId,
         oldName, newName);
 
-    FateLogger.info("{}:\tRenamed namespace id:{} from {} to {}", String.format("%016x", tid),
-        namespaceId, oldName, newName);
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid, String.format("Renamed namespace id:%s from %s to %s", namespaceId, oldName,
+        newName));
     return null;
   }
 
   @Override
   public void undo(long tid, Master env) {
     Utils.unreserveNamespace(env, namespaceId, tid, true);
-    FateLogger.info("{}:\tReverting NAMESPACE_RENAME operation", FateTxId.formatTid(tid));
-    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid, "Reverting NAMESPACE_RENAME operation");
   }
 
 }

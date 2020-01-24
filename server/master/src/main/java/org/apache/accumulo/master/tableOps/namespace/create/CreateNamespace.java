@@ -52,8 +52,8 @@ public class CreateNamespace extends MasterRepo implements FateLogger {
     try {
       namespaceInfo.namespaceId =
           Utils.getNextId(namespaceInfo.namespaceName, master.getContext(), NamespaceId::of);
-      FateLogger.info("{}:\tObtaining namespaceID: '{}'", FateTxId.formatTid(tid),
-          namespaceInfo.namespaceId.toString());
+      FateInfo(tid, String.format("Obtaining namespace id: %s",
+          namespaceInfo.namespaceId.toString()));
       return new SetupNamespacePermissions(namespaceInfo);
     } finally {
       Utils.getIdLock().unlock();
@@ -63,9 +63,8 @@ public class CreateNamespace extends MasterRepo implements FateLogger {
 
   @Override
   public void undo(long tid, Master env) {
-    FateLogger.info("{}:\tReverting NAMESPACE_CREATE operation", FateTxId.formatTid(tid));
+    FateEnd(tid, "Reverting NAMESPACE_CREATE operation");
     // nothing to do, the namespace id was allocated!
-    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
   }
 
 }

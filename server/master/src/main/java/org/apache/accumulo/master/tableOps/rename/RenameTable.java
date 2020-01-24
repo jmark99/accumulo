@@ -72,7 +72,7 @@ public class RenameTable extends MasterRepo implements FateLogger {
     // ensure no attempt is made to rename across namespaces
     if (newTableName.contains(".") && !namespaceId
         .equals(Namespaces.getNamespaceId(master.getContext(), qualifiedNewTableName.getFirst()))) {
-      FateLogger.info("{}:\t{}", FateTxId.formatTid(tid), ERROR_MSG1);
+      FateInfo(tid, ERROR_MSG1);
       throw new AcceptableThriftTableOperationException(tableId.canonical(), oldTableName,
           TableOperation.RENAME, TableOperationExceptionType.INVALID_NAME, ERROR_MSG1);
     }
@@ -91,12 +91,12 @@ public class RenameTable extends MasterRepo implements FateLogger {
           master.getZooKeeperRoot() + Constants.ZTABLES + "/" + tableId + Constants.ZTABLE_NAME;
 
       zoo.mutate(tap, null, null, current -> {
-        FateLogger.info("{}:\tUpdating table name in zookeeper", FateTxId.formatTid(tid));
+        FateInfo(tid, "Updating table name in zookeeper");
         final String currentName = new String(current, UTF_8);
         if (currentName.equals(newName))
           return null; // assume in this case the operation is running again, so we are done
         if (!currentName.equals(oldName)) {
-          FateLogger.info("{}:\t{}", FateTxId.formatTid(tid), ERROR_MSG2);
+          FateInfo(tid, ERROR_MSG2);
           throw new AcceptableThriftTableOperationException(null, oldTableName,
               TableOperation.RENAME, TableOperationExceptionType.NOTFOUND, ERROR_MSG2);
         }
@@ -112,9 +112,7 @@ public class RenameTable extends MasterRepo implements FateLogger {
     LoggerFactory.getLogger(RenameTable.class).debug("Renamed table {} {} {}", tableId,
         oldTableName, newTableName);
 
-    FateLogger.info("{}:\tRenamed table {} {} {}", FateTxId.formatTid(tid), tableId, oldTableName,
-        newTableName);
-    FateLogger.info("{}: END fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid, String.format("Renamed table %s:%s to %s", oldTableName, tableId, newTableName));
 
     return null;
   }
@@ -123,8 +121,7 @@ public class RenameTable extends MasterRepo implements FateLogger {
   public void undo(long tid, Master env) {
     Utils.unreserveTable(env, tableId, tid, true);
     Utils.unreserveNamespace(env, namespaceId, tid, false);
-    FateLogger.info("{}:\tReverting TABLE_RENAME operation", FateTxId.formatTid(tid));
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid, "Reverting TABLE_RENAME operation");
   }
 
 }

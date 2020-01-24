@@ -104,8 +104,7 @@ class LoadFiles extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(final long tid, final Master master) throws Exception {
     master.updateBulkImportStatus(source, BulkImportState.LOADING);
-    FateLogger.info("{}:\tUpdating bulk import status to {}", String.format("%016x", tid),
-        BulkImportState.LOADING);
+    FateInfo(tid, String.format("Updating bulk import status to %s", BulkImportState.LOADING));
     ExecutorService executor = getThreadPool(master);
     final AccumuloConfiguration conf = master.getConfiguration();
     VolumeManager fs = master.getFileSystem();
@@ -113,17 +112,18 @@ class LoadFiles extends MasterRepo implements FateLogger {
     for (FileStatus entry : fs.listStatus(new Path(bulk))) {
       files.add(entry);
     }
-    log.debug(FateTxId.formatTid(tid) + " importing " + files.size() + " files");
-    FateLogger.info("{}:\tImporting {} files", String.format("%016x", tid), files.size());
+    FateInfo(tid, String.format("Importing %s files", files.size()));
 
     Path writable = new Path(this.errorDir, ".iswritable");
     if (!fs.createNewFile(writable)) {
       // Maybe this is a re-try... clear the flag and try again
       fs.delete(writable);
-      if (!fs.createNewFile(writable))
+      if (!fs.createNewFile(writable)) {
+        FateWarn(tid, String.format("Unable to write to %s", this.errorDir));
         throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
             TableOperation.BULK_IMPORT, TableOperationExceptionType.BULK_BAD_ERROR_DIRECTORY,
             "Unable to write to " + this.errorDir);
+      }
     }
     fs.delete(writable);
 

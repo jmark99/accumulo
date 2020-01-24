@@ -54,26 +54,26 @@ class FinishCreateTable extends MasterRepo implements FateLogger {
     if (tableInfo.getInitialTableState() == InitialTableState.OFFLINE) {
       env.getContext().getTableManager().transitionTableState(tableInfo.getTableId(),
           TableState.OFFLINE);
-      FateLogger.info("{}:\tSetting initial table state to OFFLINE", FateTxId.formatTid(tid));
+      FateInfo(tid, "Setting initial table state to OFFLINE");
     } else {
       env.getContext().getTableManager().transitionTableState(tableInfo.getTableId(),
           TableState.ONLINE);
-      FateLogger.info("{}:\tSetting initial table state to ONLINE", FateTxId.formatTid(tid));
+      FateInfo(tid, "Setting initial table state to ONLINE");
     }
 
     Utils.unreserveNamespace(env, tableInfo.getNamespaceId(), tid, false);
     Utils.unreserveTable(env, tableInfo.getTableId(), tid, true);
 
     env.getEventCoordinator().event("Created table %s ", tableInfo.getTableName());
-    FateLogger.info("{}:\tCreated table - {}:{}", FateTxId.formatTid(tid), tableInfo.getTableName(),
-        tableInfo.getTableId().canonical());
+    FateInfo(tid, String.format("Create table %s:%s", tableInfo.getTableName(),
+        tableInfo.getTableId().canonical()));
 
     if (tableInfo.getInitialSplitSize() > 0) {
-      FateLogger.info("{}:\tDeleting splits file", FateTxId.formatTid(tid));
+      FateInfo(tid, "Deleting splits file");
       cleanupSplitFiles(env);
     }
 
-    FateLogger.info("{}: END Fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid);
     return null;
   }
 

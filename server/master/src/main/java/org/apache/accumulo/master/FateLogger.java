@@ -33,6 +33,10 @@ public interface FateLogger {
     FateLogger.info("{}:   {}", FateTxId.formatTid(tid), msg);
   }
 
+  default void FateWarn(long tid, String msg) {
+    FateLogger.warn("{}:   {}", FateTxId.formatTid(tid), msg);
+  }
+
   default void FateEnd(long tid) {
     FateLogger.info("{}: END Fate Transaction", FateTxId.formatTid(tid));
     FateLogger.info("");

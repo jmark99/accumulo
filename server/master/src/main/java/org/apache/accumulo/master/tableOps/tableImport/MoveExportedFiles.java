@@ -48,8 +48,7 @@ class MoveExportedFiles extends MasterRepo implements FateLogger {
 
   @Override
   public Repo<Master> call(long tid, Master master) throws Exception {
-    FateLogger.info("{}:\tMove exported files", FateTxId.formatTid(tid));
-
+    FateInfo(tid, "Move exported files");
     try {
       VolumeManager fs = master.getFileSystem();
 
@@ -57,6 +56,7 @@ class MoveExportedFiles extends MasterRepo implements FateLogger {
 
       for (String oldFileName : fileNameMappings.keySet()) {
         if (!fs.exists(new Path(tableInfo.exportDir, oldFileName))) {
+          FateWarn(tid, "File referenced by exported table does not exist");
           throw new AcceptableThriftTableOperationException(tableInfo.tableId.canonical(),
               tableInfo.tableName, TableOperation.IMPORT, TableOperationExceptionType.OTHER,
               "File referenced by exported table does not exists " + oldFileName);
@@ -74,7 +74,7 @@ class MoveExportedFiles extends MasterRepo implements FateLogger {
 
       return new FinishImportTable(tableInfo);
     } catch (IOException ioe) {
-      log.warn("{}", ioe.getMessage(), ioe);
+      FateWarn(tid, ioe.getMessage());
       throw new AcceptableThriftTableOperationException(tableInfo.tableId.canonical(),
           tableInfo.tableName, TableOperation.IMPORT, TableOperationExceptionType.OTHER,
           "Error renaming files " + ioe.getMessage());

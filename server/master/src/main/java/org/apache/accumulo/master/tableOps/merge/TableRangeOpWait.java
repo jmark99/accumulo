@@ -75,7 +75,7 @@ class TableRangeOpWait extends MasterRepo implements FateLogger {
     master.clearMergeState(tableId);
     Utils.unreserveTable(master, tableId, tid, true);
     Utils.unreserveNamespace(master, namespaceId, tid, false);
-    FateLogger.info("{}:END fate transaction", FateTxId.formatTid(tid));
+    FateEnd(tid);
     return null;
   }
 

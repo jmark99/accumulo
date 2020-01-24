@@ -175,8 +175,7 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
   @Override
   public Repo<Master> call(final long tid, final Master master) throws Exception {
     // now that table lock is acquired check that all splits in load mapping exists in table
-    FateLogger.info("{}:\tChecking that all splits in load mapping exist in table",
-        String.format("%016x", tid));
+    FateInfo(tid, "Checking that all splits in load mapping exist in table");
     checkForMerge(master);
 
     bulkInfo.tableState = Tables.getTableState(master.getContext(), bulkInfo.tableId);
@@ -189,10 +188,9 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
     Path bulkDir = createNewBulkDir(master.getContext(), fs, bulkInfo.tableId);
     Path mappingFile = new Path(sourceDir, Constants.BULK_LOAD_MAPPING);
 
-    FateLogger.info("{}:\tSourceDir: {}/{}; bulkDir: {}/{}; mappingFile: {}/{}",
-        String.format("%016x", tid), sourceDir.getParent().getName(), sourceDir.getName(),
-        bulkDir.getParent().getName(), bulkDir.getName(), mappingFile.getParent().getName(),
-        mappingFile.getName());
+    FateInfo(tid, String.format("ourceDir: %s/%s; bulkDir: %s/%s; mappingFile: %s/%s",
+        sourceDir.getParent().getName(), sourceDir.getName(), bulkDir.getParent().getName(),
+        bulkDir.getName(), mappingFile.getParent().getName(), mappingFile.getName()));
 
     Map<String,String> oldToNewNameMap = new HashMap<>();
 
@@ -244,7 +242,6 @@ public class PrepBulkImport extends MasterRepo implements FateLogger {
     Utils.getReadLock(environment, bulkInfo.tableId, tid).unlock();
     TransactionWatcher.ZooArbitrator.cleanup(environment.getContext(),
         Constants.BULK_ARBITRATOR_TYPE, tid);
-    FateLogger.info("{}:\tUndo-ing delete namespace operation", String.format("%016x", tid));
-    FateLogger.info("{}:END fate transaction", String.format("%016x", tid));
+    FateEnd(tid, "Reverting NAMESPACE_DELETE operation");
   }
 }

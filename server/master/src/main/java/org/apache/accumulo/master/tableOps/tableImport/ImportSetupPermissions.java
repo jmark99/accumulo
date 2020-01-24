@@ -48,7 +48,7 @@ class ImportSetupPermissions extends MasterRepo implements FateLogger {
   public Repo<Master> call(long tid, Master env) throws Exception {
     // give all table permissions to the creator
     SecurityOperation security = AuditedSecurityOperation.getInstance(env.getContext());
-    FateLogger.info("{}:\tSetting table permissions", FateTxId.formatTid(tid));
+    FateInfo(tid, "Setting table permissions");
     for (TablePermission permission : TablePermission.values()) {
       try {
         security.grantTablePermission(env.getContext().rpcCreds(), tableInfo.user,

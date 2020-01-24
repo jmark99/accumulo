@@ -63,8 +63,8 @@ class PopulateZookeeperWithNamespace extends MasterRepo implements FateLogger {
         NamespacePropUtil.setNamespaceProperty(master.getContext(), namespaceInfo.namespaceId,
             entry.getKey(), entry.getValue());
 
-      FateLogger.info("{}:\tPopulating zookeeper with namespace info: {}:{}",
-          FateTxId.formatTid(tid), namespaceInfo.namespaceName, namespaceInfo.namespaceId);
+      FateInfo(tid, String.format("Populating zookeeper with namespace info: %s:%s",
+          namespaceInfo.namespaceName, namespaceInfo.namespaceId));
 
       Tables.clearCache(master.getContext());
 
