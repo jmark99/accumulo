@@ -614,4 +614,13 @@ public class ShellIT extends SharedMiniClusterBase {
         "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\na\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\n");
   }
 
+  @Test
+  public void testTablesTimeType() throws Exception {
+    Shell.log.info("Starting testTablesTimeType test -------------");
+    exec("createtable table1");
+    exec("tables", true);
+    exec("tables -l", true);
+    exec("tables -t", true);
+  }
+
 }

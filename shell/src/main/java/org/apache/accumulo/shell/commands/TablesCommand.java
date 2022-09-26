@@ -26,6 +26,7 @@ import java.util.TreeMap;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.NamespaceNotFoundException;
+import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.util.tables.TableNameUtil;
 import org.apache.accumulo.shell.Shell;
 import org.apache.accumulo.shell.Shell.Command;
@@ -41,16 +42,20 @@ public class TablesCommand extends Command {
   static final String NAME_AND_ID_FORMAT = "%-20s => %9s%n";
 
   private Option tableIdOption;
+  private Option tableTimeTypeOption;
   private Option sortByTableIdOption;
   private Option disablePaginationOpt;
 
   @Override
   public int execute(final String fullCommand, final CommandLine cl, final Shell shellState)
-      throws AccumuloException, AccumuloSecurityException, IOException, NamespaceNotFoundException {
+      throws AccumuloException, AccumuloSecurityException, IOException, NamespaceNotFoundException,
+      TableNotFoundException {
 
     final String namespace = cl.hasOption(OptUtil.namespaceOpt().getOpt())
         ? OptUtil.getNamespaceOpt(cl, shellState) : null;
     Map<String,String> tables = shellState.getAccumuloClient().tableOperations().tableIdMap();
+
+    // shellState.getAccumuloClient().tableOperations().getTimeType(tableName);
 
     // filter only specified namespace
     tables = Maps.filterKeys(tables, tableName -> namespace == null
@@ -62,11 +67,20 @@ public class TablesCommand extends Command {
     Iterator<String> it = Iterators.transform(tables.entrySet().iterator(), entry -> {
       String tableName = String.valueOf(sortByTableId ? entry.getValue() : entry.getKey());
       String tableId = String.valueOf(sortByTableId ? entry.getKey() : entry.getValue());
+
       if (namespace != null)
         tableName = TableNameUtil.qualify(tableName).getSecond();
-      if (cl.hasOption(tableIdOption.getOpt()))
+      if (cl.hasOption(tableIdOption.getOpt())) {
         return String.format(NAME_AND_ID_FORMAT, tableName, tableId);
-      else
+      } else if (cl.hasOption(tableTimeTypeOption.getOpt())) {
+        try {
+          return String.format(NAME_AND_ID_FORMAT, tableName,
+              shellState.getAccumuloClient().tableOperations().getTimeType(entry.getKey()));
+        } catch (TableNotFoundException e) {
+          ;
+        }
+        return "error";
+      } else
         return tableName;
     });
 
@@ -85,6 +99,9 @@ public class TablesCommand extends Command {
     tableIdOption =
         new Option("l", "list-ids", false, "display internal table ids along with the table name");
     o.addOption(tableIdOption);
+    tableTimeTypeOption =
+        new Option("t", "timetype", false, "display the TimeType value along with the table name");
+    o.addOption(tableTimeTypeOption);
     sortByTableIdOption = new Option("s", "sort-ids", false, "with -l: sort output by table ids");
     o.addOption(sortByTableIdOption);
     disablePaginationOpt = new Option("np", "no-pagination", false, "disable pagination of output");
