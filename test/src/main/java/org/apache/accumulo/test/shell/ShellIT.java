@@ -621,6 +621,7 @@ public class ShellIT extends SharedMiniClusterBase {
     exec("tables", true);
     exec("tables -l", true);
     exec("tables -t", true);
+    exec("tables -tl", true);
   }
 
 }

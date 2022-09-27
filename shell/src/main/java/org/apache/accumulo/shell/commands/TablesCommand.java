@@ -39,7 +39,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 
 public class TablesCommand extends Command {
-  static final String NAME_AND_ID_FORMAT = "%-20s => %9s%n";
+  static final String NAME_AND_ID_FORMAT = "%-20s => %9s";
 
   private Option tableIdOption;
   private Option tableTimeTypeOption;
@@ -68,18 +68,28 @@ public class TablesCommand extends Command {
       String tableName = String.valueOf(sortByTableId ? entry.getValue() : entry.getKey());
       String tableId = String.valueOf(sortByTableId ? entry.getKey() : entry.getValue());
 
+      /*
+       * String output = "" FORMAT = "" L: format = "id-format" T: format = format +
+       * "timetype-formt"
+       *
+       *
+       */
+
+      String output = "";
       if (namespace != null)
         tableName = TableNameUtil.qualify(tableName).getSecond();
       if (cl.hasOption(tableIdOption.getOpt())) {
-        return String.format(NAME_AND_ID_FORMAT, tableName, tableId);
-      } else if (cl.hasOption(tableTimeTypeOption.getOpt())) {
+        output = String.format("%-20s => %9s", tableName, tableId);
+        // return String.format(NAME_AND_ID_FORMAT, tableName, tableId);
+      }
+      if (cl.hasOption(tableTimeTypeOption.getOpt())) {
         try {
-          return String.format(NAME_AND_ID_FORMAT, tableName,
+          output = output + "\tTimeType: " + String.format("TimeType: %-8s", tableName,
               shellState.getAccumuloClient().tableOperations().getTimeType(entry.getKey()));
         } catch (TableNotFoundException e) {
           ;
         }
-        return "error";
+        return output + "\n";
       } else
         return tableName;
     });
