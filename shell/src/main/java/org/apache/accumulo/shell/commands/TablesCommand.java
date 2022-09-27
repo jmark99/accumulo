@@ -55,8 +55,6 @@ public class TablesCommand extends Command {
         ? OptUtil.getNamespaceOpt(cl, shellState) : null;
     Map<String,String> tables = shellState.getAccumuloClient().tableOperations().tableIdMap();
 
-    // shellState.getAccumuloClient().tableOperations().getTimeType(tableName);
-
     // filter only specified namespace
     tables = Maps.filterKeys(tables, tableName -> namespace == null
         || TableNameUtil.qualify(tableName).getFirst().equals(namespace));
@@ -66,32 +64,27 @@ public class TablesCommand extends Command {
 
     Iterator<String> it = Iterators.transform(tables.entrySet().iterator(), entry -> {
       String tableName = String.valueOf(sortByTableId ? entry.getValue() : entry.getKey());
+      String output = String.format("%-20s", tableName);
       String tableId = String.valueOf(sortByTableId ? entry.getKey() : entry.getValue());
 
-      /*
-       * String output = "" FORMAT = "" L: format = "id-format" T: format = format +
-       * "timetype-formt"
-       *
-       *
-       */
-
-      String output = "";
-      if (namespace != null)
+      if (namespace != null) {
         tableName = TableNameUtil.qualify(tableName).getSecond();
+        output = String.format("%-20s", tableName);
+      }
+
       if (cl.hasOption(tableIdOption.getOpt())) {
-        output = String.format("%-20s => %9s", tableName, tableId);
-        // return String.format(NAME_AND_ID_FORMAT, tableName, tableId);
+        output = output + String.format(" ==> %9s", tableId);
       }
       if (cl.hasOption(tableTimeTypeOption.getOpt())) {
         try {
-          output = output + "\tTimeType: " + String.format("TimeType: %-8s", tableName,
+          output = output + String.format("\t[%s]",
               shellState.getAccumuloClient().tableOperations().getTimeType(entry.getKey()));
         } catch (TableNotFoundException e) {
           ;
         }
-        return output + "\n";
-      } else
-        return tableName;
+        output = output + "\n";
+      }
+      return output;
     });
 
     shellState.printLines(it, !cl.hasOption(disablePaginationOpt.getOpt()));

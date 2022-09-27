@@ -616,12 +616,39 @@ public class ShellIT extends SharedMiniClusterBase {
 
   @Test
   public void testTablesTimeType() throws Exception {
-    Shell.log.info("Starting testTablesTimeType test -------------");
-    exec("createtable table1");
-    exec("tables", true);
-    exec("tables -l", true);
-    exec("tables -t", true);
-    exec("tables -tl", true);
+    Shell.log.info("Starting testTablesTimeType test ----------------");
+    exec("createtable atable");
+
+    exec("tables", true,
+        "accumulo.metadata   \naccumulo.replication\naccumulo.root       \natable");
+
+    exec("tables -l", true,
+        "accumulo.metadata    ==>        !0\n"
+            + "accumulo.replication ==>      +rep\naccumulo.root        ==>        +r\n"
+            + "atable               ==>         1\n");
+
+    exec("tables -l -ns accumulo", true,
+        "metadata             ==>        !0\nreplication          ==>      +rep\n"
+            + "root                 ==>        +r");
+
+    exec("tables -t", true,
+        "accumulo.metadata   \t[LOGICAL]\n"
+            + "accumulo.replication\t[LOGICAL]\naccumulo.root       \t[LOGICAL]\n"
+            + "atable              \t[MILLIS]\n");
+
+    exec("tables -t -ns accumulo", true, "metadata            \t[LOGICAL]\n"
+        + "replication         \t[LOGICAL]\nroot                \t[LOGICAL]");
+
+    exec("tables -tl -ns accumulo", true,
+        "metadata             ==>        !0\t[LOGICAL]\n"
+            + "replication          ==>      +rep\t[LOGICAL]\n"
+            + "root                 ==>        +r\t[LOGICAL]\n");
+
+    exec("tables -tl", true,
+        "accumulo.metadata    ==>        !0\t[LOGICAL]\n"
+            + "accumulo.replication ==>      +rep\t[LOGICAL]\n"
+            + "accumulo.root        ==>        +r\t[LOGICAL]\n"
+            + "atable               ==>         1\t[MILLIS]\n");
   }
 
 }
