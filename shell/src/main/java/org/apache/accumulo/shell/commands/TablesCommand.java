@@ -78,7 +78,7 @@ public class TablesCommand extends Command {
         output = output + String.format("%9s", tableId);
       }
       if (cl.hasOption(tableTimeTypeOption.getOpt())) {
-        TimeType timeType = null;
+        TimeType timeType;
         try {
           timeType = shellState.getAccumuloClient().tableOperations().getTimeType(entry.getKey());
         } catch (TableNotFoundException e) {
