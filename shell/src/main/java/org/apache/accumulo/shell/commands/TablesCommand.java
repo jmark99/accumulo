@@ -27,6 +27,7 @@ import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.NamespaceNotFoundException;
 import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.client.admin.TimeType;
 import org.apache.accumulo.core.util.tables.TableNameUtil;
 import org.apache.accumulo.shell.Shell;
 import org.apache.accumulo.shell.Shell.Command;
@@ -39,7 +40,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 
 public class TablesCommand extends Command {
-  static final String NAME_AND_ID_FORMAT = "%-20s => %9s";
 
   private Option tableIdOption;
   private Option tableTimeTypeOption;
@@ -48,8 +48,7 @@ public class TablesCommand extends Command {
 
   @Override
   public int execute(final String fullCommand, final CommandLine cl, final Shell shellState)
-      throws AccumuloException, AccumuloSecurityException, IOException, NamespaceNotFoundException,
-      TableNotFoundException {
+      throws AccumuloException, AccumuloSecurityException, IOException, NamespaceNotFoundException {
 
     final String namespace = cl.hasOption(OptUtil.namespaceOpt().getOpt())
         ? OptUtil.getNamespaceOpt(cl, shellState) : null;
@@ -64,27 +63,30 @@ public class TablesCommand extends Command {
 
     Iterator<String> it = Iterators.transform(tables.entrySet().iterator(), entry -> {
       String tableName = String.valueOf(sortByTableId ? entry.getValue() : entry.getKey());
-      String output = String.format("%-20s", tableName);
       String tableId = String.valueOf(sortByTableId ? entry.getKey() : entry.getValue());
+      String output = String.format("%-20s", tableName);
 
       if (namespace != null) {
         tableName = TableNameUtil.qualify(tableName).getSecond();
         output = String.format("%-20s", tableName);
       }
 
+      if (cl.getOptions().length > 0) {
+        output = output + " ==> ";
+      }
       if (cl.hasOption(tableIdOption.getOpt())) {
-        output = output + String.format(" ==> %9s", tableId);
+        output = output + String.format("%9s", tableId);
       }
       if (cl.hasOption(tableTimeTypeOption.getOpt())) {
+        TimeType timeType = null;
         try {
-          output = output + String.format("\t[%s]",
-              shellState.getAccumuloClient().tableOperations().getTimeType(entry.getKey()));
+          timeType = shellState.getAccumuloClient().tableOperations().getTimeType(entry.getKey());
         } catch (TableNotFoundException e) {
-          ;
+          throw new IllegalStateException("Failed to retrieve TimeType value for " + tableName);
         }
-        output = output + "\n";
+        output = output + String.format("  [%s]", timeType);
       }
-      return output;
+      return output + "\n";
     });
 
     shellState.printLines(it, !cl.hasOption(disablePaginationOpt.getOpt()));

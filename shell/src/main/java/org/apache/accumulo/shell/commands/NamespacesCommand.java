@@ -35,6 +35,9 @@ import org.apache.commons.cli.Options;
 import com.google.common.collect.Iterators;
 
 public class NamespacesCommand extends Command {
+
+  final String NAME_AND_ID_FORMAT = "%-20s => %9s";
+
   private Option disablePaginationOpt, namespaceIdOption;
 
   private static final String DEFAULT_NAMESPACE_DISPLAY_NAME = "\"\"";
@@ -51,7 +54,7 @@ public class NamespacesCommand extends Command {
         name = DEFAULT_NAMESPACE_DISPLAY_NAME;
       String id = entry.getValue();
       if (cl.hasOption(namespaceIdOption.getOpt()))
-        return String.format(TablesCommand.NAME_AND_ID_FORMAT, name, id);
+        return String.format(NAME_AND_ID_FORMAT, name, id);
       else
         return name;
     });

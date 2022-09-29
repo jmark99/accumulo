@@ -632,23 +632,23 @@ public class ShellIT extends SharedMiniClusterBase {
             + "root                 ==>        +r");
 
     exec("tables -t", true,
-        "accumulo.metadata   \t[LOGICAL]\n"
-            + "accumulo.replication\t[LOGICAL]\naccumulo.root       \t[LOGICAL]\n"
-            + "atable              \t[MILLIS]\n");
+        "accumulo.metadata    ==>   [LOGICAL]\n"
+            + "accumulo.replication ==>   [LOGICAL]\naccumulo.root        ==>   [LOGICAL]\n"
+            + "atable               ==>   [MILLIS]\n");
 
-    exec("tables -t -ns accumulo", true, "metadata            \t[LOGICAL]\n"
-        + "replication         \t[LOGICAL]\nroot                \t[LOGICAL]");
+    exec("tables -t -ns accumulo", true, "metadata             ==>   [LOGICAL]\n"
+        + "replication          ==>   [LOGICAL]\nroot                 ==>   [LOGICAL]\n");
 
     exec("tables -tl -ns accumulo", true,
-        "metadata             ==>        !0\t[LOGICAL]\n"
-            + "replication          ==>      +rep\t[LOGICAL]\n"
-            + "root                 ==>        +r\t[LOGICAL]\n");
+        "metadata             ==>        !0  [LOGICAL]\n"
+            + "replication          ==>      +rep  [LOGICAL]\n"
+            + "root                 ==>        +r  [LOGICAL]\n");
 
     exec("tables -tl", true,
-        "accumulo.metadata    ==>        !0\t[LOGICAL]\n"
-            + "accumulo.replication ==>      +rep\t[LOGICAL]\n"
-            + "accumulo.root        ==>        +r\t[LOGICAL]\n"
-            + "atable               ==>         1\t[MILLIS]\n");
+        "accumulo.metadata    ==>        !0  [LOGICAL]\n"
+            + "accumulo.replication ==>      +rep  [LOGICAL]\n"
+            + "accumulo.root        ==>        +r  [LOGICAL]\n"
+            + "atable               ==>         1  [MILLIS]\n");
   }
 
 }
