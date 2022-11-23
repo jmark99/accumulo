@@ -23,7 +23,7 @@ import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.LOCATION;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.LOGS;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.PREV_ROW;
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -60,6 +60,8 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.dataImpl.thrift.TKeyExtent;
+import org.apache.accumulo.core.fate.Fate;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.core.manager.thrift.ManagerClientService;
 import org.apache.accumulo.core.manager.thrift.ManagerGoalState;
 import org.apache.accumulo.core.manager.thrift.ManagerMonitorInfo;
@@ -80,7 +82,6 @@ import org.apache.accumulo.core.securityImpl.thrift.TDelegationToken;
 import org.apache.accumulo.core.securityImpl.thrift.TDelegationTokenConfig;
 import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.core.util.ByteBufferUtil;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.manager.tableOps.TraceRepo;
 import org.apache.accumulo.manager.tserverOps.ShutdownTServer;
 import org.apache.accumulo.server.client.ClientServiceHandler;
@@ -310,21 +311,26 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
       }
     }
 
-    long tid = manager.fate.startTransaction();
+    Fate<Manager> fate = manager.fate();
+    long tid = fate.startTransaction();
 
     String msg = "Shutdown tserver " + tabletServer;
 
-    manager.fate.seedTransaction("ShutdownTServer", tid,
+    fate.seedTransaction("ShutdownTServer", tid,
         new TraceRepo<>(new ShutdownTServer(doomed, force)), false, msg);
-    manager.fate.waitForCompletion(tid);
-    manager.fate.delete(tid);
+    fate.waitForCompletion(tid);
+    fate.delete(tid);
 
     log.debug("FATE op shutting down " + tabletServer + " finished");
   }
 
   @Override
   public void reportSplitExtent(TInfo info, TCredentials credentials, String serverName,
-      TabletSplit split) {
+      TabletSplit split) throws ThriftSecurityException {
+    if (!manager.security.canPerformSystemActions(credentials))
+      throw new ThriftSecurityException(credentials.getPrincipal(),
+          SecurityErrorCode.PERMISSION_DENIED);
+
     KeyExtent oldTablet = KeyExtent.fromThrift(split.oldTablet);
     if (manager.migrations.remove(oldTablet) != null) {
       Manager.log.info("Canceled migration of {}", split.oldTablet);
@@ -342,7 +348,11 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
 
   @Override
   public void reportTabletStatus(TInfo info, TCredentials credentials, String serverName,
-      TabletLoadState status, TKeyExtent ttablet) {
+      TabletLoadState status, TKeyExtent ttablet) throws ThriftSecurityException {
+    if (!manager.security.canPerformSystemActions(credentials))
+      throw new ThriftSecurityException(credentials.getPrincipal(),
+          SecurityErrorCode.PERMISSION_DENIED);
+
     KeyExtent tablet = KeyExtent.fromThrift(ttablet);
 
     switch (status) {
@@ -546,7 +556,12 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
   }
 
   @Override
-  public List<String> getActiveTservers(TInfo tinfo, TCredentials credentials) {
+  public List<String> getActiveTservers(TInfo tinfo, TCredentials credentials)
+      throws ThriftSecurityException {
+    if (!manager.security.canPerformSystemActions(credentials))
+      throw new ThriftSecurityException(credentials.getPrincipal(),
+          SecurityErrorCode.PERMISSION_DENIED);
+
     Set<TServerInstance> tserverInstances = manager.onlineTabletServers();
     List<String> servers = new ArrayList<>();
     for (TServerInstance tserverInstance : tserverInstances) {

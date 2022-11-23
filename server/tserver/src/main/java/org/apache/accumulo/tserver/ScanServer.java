@@ -19,7 +19,7 @@
 package org.apache.accumulo.tserver;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -59,6 +59,12 @@ import org.apache.accumulo.core.dataImpl.thrift.ScanResult;
 import org.apache.accumulo.core.dataImpl.thrift.TColumn;
 import org.apache.accumulo.core.dataImpl.thrift.TKeyExtent;
 import org.apache.accumulo.core.dataImpl.thrift.TRange;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockLossReason;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockWatcher;
+import org.apache.accumulo.core.fate.zookeeper.ZooCache;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.core.file.blockfile.cache.impl.BlockCacheConfiguration;
 import org.apache.accumulo.core.metadata.ScanServerRefTabletFile;
 import org.apache.accumulo.core.metadata.StoredTabletFile;
@@ -77,14 +83,8 @@ import org.apache.accumulo.core.tabletserver.thrift.TooManyFilesException;
 import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.core.util.Halt;
 import org.apache.accumulo.core.util.HostAndPort;
+import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.core.util.threads.ThreadPools;
-import org.apache.accumulo.fate.util.UtilWaitThread;
-import org.apache.accumulo.fate.zookeeper.ServiceLock;
-import org.apache.accumulo.fate.zookeeper.ServiceLock.LockLossReason;
-import org.apache.accumulo.fate.zookeeper.ServiceLock.LockWatcher;
-import org.apache.accumulo.fate.zookeeper.ZooCache;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.server.AbstractServer;
 import org.apache.accumulo.server.GarbageCollectionLogger;
 import org.apache.accumulo.server.ServerContext;
@@ -653,20 +653,7 @@ public class ScanServer extends AbstractServer
       throw new NoSuchScanIDException();
     }
 
-    Set<StoredTabletFile> scanSessionFiles;
-
-    if (session instanceof SingleScanSession) {
-      var sss = (SingleScanSession) session;
-      scanSessionFiles =
-          Set.copyOf(session.getTabletResolver().getTablet(sss.extent).getDatafiles().keySet());
-    } else if (session instanceof MultiScanSession) {
-      var mss = (MultiScanSession) session;
-      scanSessionFiles = mss.exents.stream()
-          .flatMap(e -> mss.getTabletResolver().getTablet(e).getDatafiles().keySet().stream())
-          .collect(Collectors.toUnmodifiableSet());
-    } else {
-      throw new IllegalArgumentException("Unknown session type " + session.getClass().getName());
-    }
+    Set<StoredTabletFile> scanSessionFiles = getScanSessionFiles(session);
 
     long myReservationId = nextScanReservationId.incrementAndGet();
     // we are only reserving if the files already exists in reservedFiles, so only need the read
@@ -696,6 +683,20 @@ public class ScanServer extends AbstractServer
     }
 
     return new ScanReservation(scanSessionFiles, myReservationId);
+  }
+
+  private static Set<StoredTabletFile> getScanSessionFiles(ScanSession session) {
+    if (session instanceof SingleScanSession) {
+      var sss = (SingleScanSession) session;
+      return Set.copyOf(session.getTabletResolver().getTablet(sss.extent).getDatafiles().keySet());
+    } else if (session instanceof MultiScanSession) {
+      var mss = (MultiScanSession) session;
+      return mss.exents.stream()
+          .flatMap(e -> mss.getTabletResolver().getTablet(e).getDatafiles().keySet().stream())
+          .collect(Collectors.toUnmodifiableSet());
+    } else {
+      throw new IllegalArgumentException("Unknown session type " + session.getClass().getName());
+    }
   }
 
   private void cleanUpReservedFiles(long expireTimeMs) {

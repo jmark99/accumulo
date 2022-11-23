@@ -20,7 +20,7 @@ package org.apache.accumulo.tserver.tablet;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -1205,7 +1205,7 @@ public class Tablet extends TabletBase {
     try {
       // we should make .25 below configurable
       keys = FileUtil.findMidPoint(context, tableConfiguration, chooseTabletDir(),
-          extent.prevEndRow(), extent.endRow(), files, .25, true);
+          extent.prevEndRow(), extent.endRow(), FileUtil.toPathStrings(files), .25, true);
     } catch (IOException e) {
       log.error("Failed to find midpoint {}", e.getMessage());
       return null;
@@ -1450,8 +1450,9 @@ public class Tablet extends TabletBase {
         splitPoint = findSplitRow(getDatafileManager().getFiles());
       } else {
         Text tsp = new Text(sp);
+        var fileStrings = FileUtil.toPathStrings(getDatafileManager().getFiles());
         var ratio = FileUtil.estimatePercentageLTE(context, tableConfiguration, chooseTabletDir(),
-            extent.prevEndRow(), extent.endRow(), getDatafileManager().getFiles(), tsp);
+            extent.prevEndRow(), extent.endRow(), fileStrings, tsp);
         splitPoint = new SplitRowSpec(ratio, tsp);
       }
 

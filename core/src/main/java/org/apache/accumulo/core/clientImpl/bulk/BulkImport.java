@@ -75,8 +75,8 @@ import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.file.FileOperations;
 import org.apache.accumulo.core.file.FileSKVIterator;
 import org.apache.accumulo.core.spi.crypto.CryptoService;
+import org.apache.accumulo.core.util.Retry;
 import org.apache.accumulo.core.volume.VolumeConfiguration;
-import org.apache.accumulo.fate.util.Retry;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -177,7 +177,7 @@ public class BulkImport implements ImportDestinationArguments, ImportMappingOpti
           checkPlanForSplits(ae);
         }
         try {
-          retry.waitForNextAttempt();
+          retry.waitForNextAttempt(log, String.format("bulk import to %s(%s)", tableName, tableId));
         } catch (InterruptedException e) {
           throw new RuntimeException(e);
         }

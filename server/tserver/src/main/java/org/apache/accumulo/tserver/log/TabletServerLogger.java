@@ -40,9 +40,9 @@ import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.protobuf.ProtobufUtil;
 import org.apache.accumulo.core.util.Halt;
+import org.apache.accumulo.core.util.Retry;
+import org.apache.accumulo.core.util.Retry.RetryFactory;
 import org.apache.accumulo.core.util.threads.ThreadPools;
-import org.apache.accumulo.fate.util.Retry;
-import org.apache.accumulo.fate.util.Retry.RetryFactory;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.replication.proto.Replication.Status;
@@ -242,7 +242,7 @@ public class TabletServerLogger {
 
         try {
           // Backoff
-          createRetry.waitForNextAttempt();
+          createRetry.waitForNextAttempt(log, "create new WAL ");
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
@@ -444,7 +444,7 @@ public class TabletServerLogger {
 
         try {
           // Backoff
-          writeRetry.waitForNextAttempt();
+          writeRetry.waitForNextAttempt(log, "write to WAL");
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);

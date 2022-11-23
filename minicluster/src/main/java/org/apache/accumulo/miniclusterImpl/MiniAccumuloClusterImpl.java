@@ -22,7 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.toList;
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -74,13 +74,13 @@ import org.apache.accumulo.core.conf.DefaultConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.conf.SiteConfiguration;
 import org.apache.accumulo.core.data.InstanceId;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.core.manager.thrift.ManagerGoalState;
 import org.apache.accumulo.core.manager.thrift.ManagerMonitorInfo;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.trace.TraceUtil;
 import org.apache.accumulo.core.util.Pair;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.manager.state.SetGoalState;
 import org.apache.accumulo.minicluster.MiniAccumuloCluster;
 import org.apache.accumulo.minicluster.ServerType;
@@ -111,7 +111,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Maps;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -157,7 +156,6 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
    * @param config
    *          initial configuration
    */
-  @SuppressWarnings("deprecation")
   public MiniAccumuloClusterImpl(MiniAccumuloConfigImpl config) throws IOException {
 
     this.config = config.initialize();
@@ -221,13 +219,6 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
     } else {
       dfsUri = "file:///";
     }
-
-    File clientConfFile = config.getClientConfFile();
-    // Write only the properties that correspond to ClientConfiguration properties
-    writeConfigProperties(clientConfFile,
-        Maps.filterEntries(config.getSiteConfig(),
-            v -> org.apache.accumulo.core.client.ClientConfiguration.ClientProperty
-                .getPropertyByKey(v.getKey()) != null));
 
     Map<String,String> clientProps = config.getClientProps();
     clientProps.put(ClientProperty.INSTANCE_ZOOKEEPERS.getKey(), config.getZooKeepers());
@@ -365,8 +356,6 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
     builder.environment().put("CLASSPATH", classpath);
     builder.environment().put("ACCUMULO_HOME", config.getDir().getAbsolutePath());
     builder.environment().put("ACCUMULO_LOG_DIR", config.getLogDir().getAbsolutePath());
-    builder.environment().put("ACCUMULO_CLIENT_CONF_PATH",
-        config.getClientConfFile().getAbsolutePath());
     String ldLibraryPath = Joiner.on(File.pathSeparator).join(config.getNativeLibPaths());
     builder.environment().put("LD_LIBRARY_PATH", ldLibraryPath);
     builder.environment().put("DYLD_LIBRARY_PATH", ldLibraryPath);
@@ -859,13 +848,6 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
   @Override
   public AccumuloClient createAccumuloClient(String user, AuthenticationToken token) {
     return Accumulo.newClient().from(clientProperties.get()).as(user, token).build();
-  }
-
-  @SuppressWarnings("deprecation")
-  @Override
-  public org.apache.accumulo.core.client.ClientConfiguration getClientConfig() {
-    return org.apache.accumulo.core.client.ClientConfiguration.fromMap(config.getSiteConfig())
-        .withInstance(this.getInstanceName()).withZkHosts(this.getZooKeepers());
   }
 
   @Override

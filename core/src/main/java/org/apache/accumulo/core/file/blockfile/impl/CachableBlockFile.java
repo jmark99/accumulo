@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import org.apache.accumulo.core.file.rfile.BlockIndex;
 import org.apache.accumulo.core.file.rfile.bcfile.BCFile;
 import org.apache.accumulo.core.file.rfile.bcfile.BCFile.Reader.BlockReader;
 import org.apache.accumulo.core.file.rfile.bcfile.MetaBlockDoesNotExist;
@@ -37,10 +38,10 @@ import org.apache.accumulo.core.file.streams.RateLimitedInputStream;
 import org.apache.accumulo.core.spi.cache.BlockCache;
 import org.apache.accumulo.core.spi.cache.BlockCache.Loader;
 import org.apache.accumulo.core.spi.cache.CacheEntry;
-import org.apache.accumulo.core.spi.cache.CacheEntry.Weighable;
 import org.apache.accumulo.core.spi.crypto.CryptoService;
 import org.apache.accumulo.core.util.ratelimit.RateLimiter;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Seekable;
@@ -59,7 +60,7 @@ public class CachableBlockFile {
 
   private static final Logger log = LoggerFactory.getLogger(CachableBlockFile.class);
 
-  private static interface IoeSupplier<T> {
+  private interface IoeSupplier<T> {
     T get() throws IOException;
   }
 
@@ -83,8 +84,28 @@ public class CachableBlockFile {
     }
 
     public CachableBuilder fsPath(FileSystem fs, Path dataFile) {
+      return fsPath(fs, dataFile, false);
+    }
+
+    public CachableBuilder fsPath(FileSystem fs, Path dataFile, boolean dropCacheBehind) {
       this.cacheId = pathToCacheId(dataFile);
-      this.inputSupplier = () -> fs.open(dataFile);
+      this.inputSupplier = () -> {
+        FSDataInputStream is = fs.open(dataFile);
+        if (dropCacheBehind) {
+          // Tell the DataNode that the write ahead log does not need to be cached in the OS page
+          // cache
+          try {
+            is.setDropBehind(Boolean.TRUE);
+            log.trace("Called setDropBehind(TRUE) for stream reading file {}", dataFile);
+          } catch (UnsupportedOperationException e) {
+            log.debug("setDropBehind not enabled for wal file: {}", dataFile);
+          } catch (IOException e) {
+            log.debug("IOException setting drop behind for file: {}, msg: {}", dataFile,
+                e.getMessage());
+          }
+        }
+        return is;
+      };
       this.lengthSupplier = () -> fs.getFileStatus(dataFile).getLen();
       return this;
     }
@@ -511,7 +532,7 @@ public class CachableBlockFile {
       return seekableInput.getBuffer();
     }
 
-    public <T extends Weighable> T getIndex(Supplier<T> indexSupplier) {
+    public BlockIndex getIndex(Supplier<BlockIndex> indexSupplier) {
       return cb.getIndex(indexSupplier);
     }
 

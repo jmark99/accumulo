@@ -20,7 +20,7 @@ package org.apache.accumulo.compactor;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -61,6 +61,11 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockLossReason;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockWatcher;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.core.iteratorsImpl.system.SystemIteratorUtil;
 import org.apache.accumulo.core.metadata.StoredTabletFile;
 import org.apache.accumulo.core.metadata.TabletFile;
@@ -83,15 +88,10 @@ import org.apache.accumulo.core.util.Halt;
 import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.ServerServices;
 import org.apache.accumulo.core.util.ServerServices.Service;
+import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.core.util.compaction.ExternalCompactionUtil;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.core.util.threads.Threads;
-import org.apache.accumulo.fate.util.UtilWaitThread;
-import org.apache.accumulo.fate.zookeeper.ServiceLock;
-import org.apache.accumulo.fate.zookeeper.ServiceLock.LockLossReason;
-import org.apache.accumulo.fate.zookeeper.ServiceLock.LockWatcher;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.server.AbstractServer;
 import org.apache.accumulo.server.GarbageCollectionLogger;
 import org.apache.accumulo.server.ServerOpts;
@@ -578,6 +578,8 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
         TCompactionStatusUpdate update2 = new TCompactionStatusUpdate(TCompactionState.SUCCEEDED,
             "Compaction completed successfully", -1, -1, -1);
         updateCompactionState(job, update2);
+      } catch (FileCompactor.CompactionCanceledException cce) {
+        LOG.debug("Compaction canceled {}", job.getExternalCompactionId());
       } catch (Exception e) {
         LOG.error("Compaction failed", e);
         err.set(e);

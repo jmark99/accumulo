@@ -31,6 +31,10 @@ $(document).ready(function () {
   if (sessionStorage.ecDetailsJSON === undefined) {
     sessionStorage.ecDetailsJSON = JSON.stringify([]);
   }
+
+  // display datatables errors in the console instead of in alerts
+  $.fn.dataTable.ext.errMode = 'throw';
+
   compactorsTable = $('#compactorsTable').DataTable({
     "ajax": {
       "url": '/rest/ec/compactors',
@@ -65,7 +69,7 @@ $(document).ready(function () {
     ]
   });
 
-  // Create a table for compactors
+  // Create a table for running compactors
   runningTable = $('#runningTable').DataTable({
     "ajax": {
       "url": '/rest/ec/running',
@@ -138,6 +142,48 @@ $(document).ready(function () {
     ]
   });
 
+  // Create a table for compaction coordinator
+  coordinatorTable = $('#coordinatorTable').DataTable({
+    "ajax": {
+      "url": '/rest/ec',
+      "dataSrc": function (data) {
+        // the data needs to be in an array to work with DataTables
+        var arr = [];
+        if (data === undefined) {
+          console.warn('the value of "data" is undefined');
+        } else {
+          arr = [data];
+        }
+
+        return arr;
+      }
+    },
+    "stateSave": true,
+    "searching": false,
+    "paging": false,
+    "info": false,
+    "columnDefs": [{
+      "targets": "duration",
+      "render": function (data, type, row) {
+        if (type === 'display') data = timeDuration(data);
+        return data;
+      }
+    }],
+    "columns": [{
+        "data": "server"
+      },
+      {
+        "data": "numQueues"
+      },
+      {
+        "data": "numCompactors"
+      },
+      {
+        "data": "lastContact"
+      }
+    ]
+  });
+
   // Array to track the ids of the details displayed rows
   var detailRows = [];
   $("#runningTable tbody").on('click', 'tr td.details-control', function () {
@@ -189,38 +235,15 @@ function refresh() {
 }
 
 /**
- * Generates the compactions table
+ * Refreshes the compaction tables
  */
 function refreshECTables() {
-  getCompactionCoordinator();
-  var ecInfo = sessionStorage.ecInfo === undefined ? [] :
-    JSON.parse(sessionStorage.ecInfo);
-  if (ecInfo.length === 0) {
-    return;
-  }
-  var ccAddress = ecInfo.server;
-  var numCompactors = ecInfo.numCompactors;
-  var lastContactTime = timeDuration(ecInfo.lastContact);
-  console.log("compaction coordinator = " + ccAddress);
-  console.log("numCompactors = " + numCompactors);
-  $('#ccHostname').text(ccAddress);
-  $('#ccNumQueues').text(ecInfo.numQueues);
-  $('#ccNumCompactors').text(numCompactors);
-  $('#ccLastContact').html(lastContactTime);
-
   // user paging is not reset on reload
-  if (compactorsTable) compactorsTable.ajax.reload(null, false);
-  if (runningTable) runningTable.ajax.reload(null, false);
+  ajaxReloadTable(compactorsTable);
+  ajaxReloadTable(runningTable);
+  ajaxReloadTable(coordinatorTable);
 }
 
-/**
- * Get address of the compaction coordinator info
- */
-function getCompactionCoordinator() {
-  $.getJSON('/rest/ec', function (data) {
-    sessionStorage.ecInfo = JSON.stringify(data);
-  });
-}
 
 function getRunningDetails(ecid, idSuffix) {
   var ajaxUrl = '/rest/ec/details?ecid=' + ecid;
@@ -283,11 +306,11 @@ function populateDetails(data, idSuffix) {
 function refreshCompactors() {
   console.log("Refresh compactors table.");
   // user paging is not reset on reload
-  if (compactorsTable) compactorsTable.ajax.reload(null, false);
+  ajaxReloadTable(compactorsTable);
 }
 
 function refreshRunning() {
   console.log("Refresh running compactions table.");
   // user paging is not reset on reload
-  if (runningTable) runningTable.ajax.reload(null, false);
+  ajaxReloadTable(runningTable);
 }

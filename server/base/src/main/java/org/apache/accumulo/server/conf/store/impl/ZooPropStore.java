@@ -28,10 +28,10 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 
 import org.apache.accumulo.core.data.InstanceId;
+import org.apache.accumulo.core.fate.zookeeper.ZooReader;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.core.metrics.MetricsUtil;
-import org.apache.accumulo.fate.zookeeper.ZooReader;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.conf.codec.VersionedPropCodec;
 import org.apache.accumulo.server.conf.codec.VersionedProperties;
 import org.apache.accumulo.server.conf.store.PropCache;
@@ -190,7 +190,8 @@ public class ZooPropStore implements PropStore, PropChangeListener {
     }
 
     if (propStoreKey instanceof SystemPropKey) {
-      return new ConfigTransformer(zrw, codec, propStoreWatcher).transform(propStoreKey);
+      return new ConfigTransformer(zrw, codec, propStoreWatcher).transform(propStoreKey,
+          propStoreKey.getPath(), false);
     }
 
     throw new IllegalStateException(
@@ -222,6 +223,10 @@ public class ZooPropStore implements PropStore, PropChangeListener {
     try {
       Stat stat = new Stat();
       byte[] bytes = zooReader.getData(propStoreKey.getPath(), watcher, stat);
+      if (stat.getDataLength() == 0) {
+        // node exists - but is empty - no props have been stored on node.
+        return null;
+      }
       return codec.fromBytes(stat.getVersion(), bytes);
     } catch (KeeperException.NoNodeException ex) {
       // ignore no node - allow other exceptions to propagate
@@ -291,7 +296,7 @@ public class ZooPropStore implements PropStore, PropChangeListener {
 
     try {
 
-      VersionedProperties vProps = cache.getWithoutCaching(propStoreKey);
+      VersionedProperties vProps = cache.getIfCached(propStoreKey);
       if (vProps == null) {
         vProps = readPropsFromZk(propStoreKey);
       }
@@ -330,7 +335,7 @@ public class ZooPropStore implements PropStore, PropChangeListener {
 
     try {
       // Grab the current properties
-      VersionedProperties vProps = cache.getWithoutCaching(propStoreKey);
+      VersionedProperties vProps = cache.getIfCached(propStoreKey);
       if (vProps == null) {
         vProps = readPropsFromZk(propStoreKey);
       }
@@ -438,6 +443,9 @@ public class ZooPropStore implements PropStore, PropChangeListener {
     try {
       Stat stat = new Stat();
       byte[] bytes = zrw.getData(propStoreKey.getPath(), stat);
+      if (stat.getDataLength() == 0) {
+        return new VersionedProperties();
+      }
       return codec.fromBytes(stat.getVersion(), bytes);
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
@@ -451,8 +459,8 @@ public class ZooPropStore implements PropStore, PropChangeListener {
   }
 
   @Override
-  public @Nullable VersionedProperties getWithoutCaching(PropStoreKey<?> propStoreKey) {
-    return cache.getWithoutCaching(propStoreKey);
+  public @Nullable VersionedProperties getIfCached(PropStoreKey<?> propStoreKey) {
+    return cache.getIfCached(propStoreKey);
   }
 
   @Override

@@ -29,6 +29,8 @@ import org.apache.accumulo.core.clientImpl.Namespace;
 import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.Value;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.core.manager.state.tables.TableState;
 import org.apache.accumulo.core.manager.thrift.ManagerGoalState;
 import org.apache.accumulo.core.metadata.MetadataTable;
@@ -37,8 +39,6 @@ import org.apache.accumulo.core.metadata.schema.DataFileValue;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema;
 import org.apache.accumulo.core.metadata.schema.MetadataTime;
 import org.apache.accumulo.core.metadata.schema.RootTabletMetadata;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf.codec.VersionedPropCodec;
 import org.apache.accumulo.server.conf.codec.VersionedProperties;
@@ -73,9 +73,6 @@ public class ZooKeeperInitializer {
 
       String zkInstanceRoot = Constants.ZROOT + "/" + instanceId;
       zoo.putPersistentData(zkInstanceRoot, EMPTY_BYTE_ARRAY, ZooUtil.NodeExistsPolicy.SKIP);
-      zoo.putPersistentData(zkInstanceRoot + Constants.ZCONFIG, EMPTY_BYTE_ARRAY,
-          ZooUtil.NodeExistsPolicy.SKIP);
-
       var sysPropPath = SystemPropKey.of(instanceId).getPath();
       VersionedProperties vProps = new VersionedProperties();
       // skip if the encoded props node exists

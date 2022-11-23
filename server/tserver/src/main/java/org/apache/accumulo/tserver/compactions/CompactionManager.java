@@ -42,10 +42,10 @@ import org.apache.accumulo.core.spi.compaction.CompactionKind;
 import org.apache.accumulo.core.spi.compaction.CompactionServiceId;
 import org.apache.accumulo.core.spi.compaction.CompactionServices;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionQueueSummary;
+import org.apache.accumulo.core.util.Retry;
 import org.apache.accumulo.core.util.compaction.CompactionExecutorIdImpl;
 import org.apache.accumulo.core.util.compaction.CompactionServicesConfig;
 import org.apache.accumulo.core.util.threads.Threads;
-import org.apache.accumulo.fate.util.Retry;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.tserver.compactions.CompactionExecutor.CType;
 import org.apache.accumulo.tserver.metrics.CompactionExecutorsMetrics;
@@ -145,7 +145,7 @@ public class CompactionManager {
         log.warn("Failed to compact {} ", extent, e);
         retry.useRetry();
         try {
-          retry.waitForNextAttempt();
+          retry.waitForNextAttempt(log, "compaction initiation loop");
         } catch (InterruptedException e1) {
           log.debug("Retry interrupted", e1);
         }

@@ -23,10 +23,10 @@ import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.FILES;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.LOGS;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.PREV_ROW;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 import static org.apache.accumulo.core.util.threads.ThreadPools.watchCriticalFixedDelay;
 import static org.apache.accumulo.core.util.threads.ThreadPools.watchCriticalScheduledTask;
 import static org.apache.accumulo.core.util.threads.ThreadPools.watchNonCriticalScheduledTask;
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -73,6 +73,12 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockLossReason;
+import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockWatcher;
+import org.apache.accumulo.core.fate.zookeeper.ZooCache;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.core.file.blockfile.cache.impl.BlockCacheConfiguration;
 import org.apache.accumulo.core.manager.thrift.ManagerClientService;
 import org.apache.accumulo.core.master.thrift.BulkImportState;
@@ -94,19 +100,13 @@ import org.apache.accumulo.core.util.Halt;
 import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.MapCounter;
 import org.apache.accumulo.core.util.Pair;
+import org.apache.accumulo.core.util.Retry;
+import org.apache.accumulo.core.util.Retry.RetryFactory;
 import org.apache.accumulo.core.util.ServerServices;
 import org.apache.accumulo.core.util.ServerServices.Service;
+import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.core.util.threads.Threads;
-import org.apache.accumulo.fate.util.Retry;
-import org.apache.accumulo.fate.util.Retry.RetryFactory;
-import org.apache.accumulo.fate.util.UtilWaitThread;
-import org.apache.accumulo.fate.zookeeper.ServiceLock;
-import org.apache.accumulo.fate.zookeeper.ServiceLock.LockLossReason;
-import org.apache.accumulo.fate.zookeeper.ServiceLock.LockWatcher;
-import org.apache.accumulo.fate.zookeeper.ZooCache;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.server.AbstractServer;
 import org.apache.accumulo.server.GarbageCollectionLogger;
 import org.apache.accumulo.server.ServerContext;
@@ -127,7 +127,6 @@ import org.apache.accumulo.server.rpc.ThriftProcessorTypes;
 import org.apache.accumulo.server.security.SecurityOperation;
 import org.apache.accumulo.server.security.SecurityUtil;
 import org.apache.accumulo.server.security.delegation.ZooAuthenticationKeyWatcher;
-import org.apache.accumulo.server.util.FileSystemMonitor;
 import org.apache.accumulo.server.util.ServerBulkImportStatus;
 import org.apache.accumulo.server.util.time.RelativeTime;
 import org.apache.accumulo.server.zookeeper.DistributedWorkQueue;
@@ -1045,15 +1044,6 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
     Threads.createThread("Split/MajC initiator", new MajorCompactor(context)).start();
 
     clientAddress = HostAndPort.fromParts(getHostname(), 0);
-
-    final AccumuloConfiguration aconf = getConfiguration();
-
-    @SuppressWarnings("removal")
-    Property TSERV_MONITOR_FS = Property.TSERV_MONITOR_FS;
-    if (aconf.getBoolean(TSERV_MONITOR_FS)) {
-      log.warn("{} is deprecated and marked for removal.", TSERV_MONITOR_FS.getKey());
-      FileSystemMonitor.start(aconf);
-    }
 
     Runnable gcDebugTask = () -> gcLogger.logGCInfo(getConfiguration());
 

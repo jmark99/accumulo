@@ -46,13 +46,14 @@ import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.data.Value;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.core.gc.Reference;
+import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.ScanServerRefTabletFile;
 import org.apache.accumulo.core.metadata.schema.Ample.DataLevel;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.ScanServerFileReferenceSection;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.HostAndPort;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.gc.GCRun;
 import org.apache.accumulo.harness.MiniClusterConfigurationCallback;
 import org.apache.accumulo.harness.SharedMiniClusterBase;
@@ -232,7 +233,7 @@ public class ScanServerMetadataEntriesIT extends SharedMiniClusterBase {
         assertNotNull(iter.next());
 
         List<Entry<Key,Value>> metadataEntries = null;
-        try (Scanner scanner2 = client.createScanner("accumulo.metadata", Authorizations.EMPTY)) {
+        try (Scanner scanner2 = client.createScanner(MetadataTable.NAME, Authorizations.EMPTY)) {
           scanner2.setRange(ScanServerFileReferenceSection.getRange());
           metadataEntries = scanner2.stream().distinct().collect(Collectors.toList());
         }

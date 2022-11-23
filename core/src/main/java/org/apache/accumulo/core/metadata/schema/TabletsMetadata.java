@@ -56,6 +56,8 @@ import org.apache.accumulo.core.clientImpl.ClientContext;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
+import org.apache.accumulo.core.fate.zookeeper.ZooCache;
+import org.apache.accumulo.core.fate.zookeeper.ZooReader;
 import org.apache.accumulo.core.iterators.user.WholeRowIterator;
 import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.RootTable;
@@ -75,8 +77,6 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.Su
 import org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.ColumnFQ;
-import org.apache.accumulo.fate.zookeeper.ZooCache;
-import org.apache.accumulo.fate.zookeeper.ZooReader;
 import org.apache.hadoop.io.Text;
 import org.apache.zookeeper.KeeperException;
 
@@ -356,10 +356,20 @@ public class TabletsMetadata implements Iterable<TabletMetadata>, AutoCloseable 
     }
 
     @Override
-    public Options overlapping(Text startRow, Text endRow) {
-      this.range = new KeyExtent(tableId, null, startRow).toMetaRange();
+    public Options overlapping(Text startRow, boolean startInclusive, Text endRow) {
+      var metaStartRow =
+          TabletsSection.encodeRow(tableId, startRow == null ? new Text("") : startRow);
+      var metaEndRow = TabletsSection.encodeRow(tableId, null);
+      this.range =
+          new Range(metaStartRow, startRow == null ? true : startInclusive, metaEndRow, true);
       this.endRow = endRow;
+
       return this;
+    }
+
+    @Override
+    public Options overlapping(Text startRow, Text endRow) {
+      return overlapping(startRow, false, endRow);
     }
 
     @Override
@@ -465,8 +475,21 @@ public class TabletsMetadata implements Iterable<TabletMetadata>, AutoCloseable 
      * Limit to tablets that overlap the range {@code (startRow, endRow]}. Can pass null
      * representing -inf and +inf. The impl creates open ended ranges which may be problematic, see
      * #813.
+     *
+     * <p>
+     * This method is equivalent to calling {@link #overlapping(Text, boolean, Text)} as
+     * {@code overlapping(startRow, false, endRow)}
+     * </p>
      */
     Options overlapping(Text startRow, Text endRow);
+
+    /**
+     * When {@code startRowInclusive} is true limits to tablets that overlap the range
+     * {@code [startRow,endRow]}. When {@code startRowInclusive} is false limits to tablets that
+     * overlap the range {@code (startRow, endRow]}. Can pass null for start and end row
+     * representing -inf and +inf.
+     */
+    Options overlapping(Text startRow, boolean startRowInclusive, Text endRow);
   }
 
   private static class TabletMetadataIterator implements Iterator<TabletMetadata> {

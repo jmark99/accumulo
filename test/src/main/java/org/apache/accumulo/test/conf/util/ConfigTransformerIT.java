@@ -38,9 +38,9 @@ import java.util.UUID;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.data.InstanceId;
-import org.apache.accumulo.fate.util.Retry;
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.fate.zookeeper.ZooUtil;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooUtil;
+import org.apache.accumulo.core.util.Retry;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf.codec.VersionedPropCodec;
 import org.apache.accumulo.server.conf.store.SystemPropKey;
@@ -131,14 +131,14 @@ public class ConfigTransformerIT {
 
     var sysPropKey = SystemPropKey.of(instanceId);
 
-    List<String> sysLegacy = zrw.getChildren(sysPropKey.getBasePath());
+    List<String> sysLegacy = zrw.getChildren(sysPropKey.getPath());
     log.info("Before: {}", sysLegacy);
 
     var vProps = propStore.get(sysPropKey);
     assertNotNull(vProps);
     log.info("Converted: {}", vProps);
 
-    sysLegacy = zrw.getChildren(sysPropKey.getBasePath());
+    sysLegacy = zrw.getChildren(sysPropKey.getPath());
     log.info("After: {}", sysLegacy);
 
   }
@@ -149,10 +149,10 @@ public class ConfigTransformerIT {
     var sysPropKey = SystemPropKey.of(instanceId);
 
     ConfigTransformer transformer = new ConfigTransformer(zrw, codec, watcher);
-    List<String> sysLegacy = zrw.getChildren(sysPropKey.getBasePath());
+    List<String> sysLegacy = zrw.getChildren(sysPropKey.getPath());
     log.info("Before: {}", sysLegacy);
 
-    var converted = transformer.transform(sysPropKey);
+    var converted = transformer.transform(sysPropKey, sysPropKey.getPath(), false);
 
     assertEquals(sysLegacy.size(), converted.asMap().size());
   }
@@ -167,9 +167,10 @@ public class ConfigTransformerIT {
 
     ConfigTransformer transformer = new ConfigTransformer(zrw, codec, watcher, retry);
     // manually create a lock so transformer fails
-    zrw.putEphemeralData(sysPropKey.getBasePath() + TransformToken.TRANSFORM_TOKEN, new byte[0]);
+    zrw.putEphemeralData(sysPropKey.getPath() + TransformToken.TRANSFORM_TOKEN, new byte[0]);
 
-    assertThrows(IllegalStateException.class, () -> transformer.transform(sysPropKey));
+    assertThrows(IllegalStateException.class,
+        () -> transformer.transform(sysPropKey, sysPropKey.getPath(), false));
 
   }
 

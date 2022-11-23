@@ -44,6 +44,8 @@ import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.dataImpl.thrift.MapFileInfo;
 import org.apache.accumulo.core.dataImpl.thrift.TKeyExtent;
+import org.apache.accumulo.core.fate.FateTxId;
+import org.apache.accumulo.core.fate.Repo;
 import org.apache.accumulo.core.manager.state.tables.TableState;
 import org.apache.accumulo.core.master.thrift.BulkImportState;
 import org.apache.accumulo.core.metadata.MetadataTable;
@@ -60,8 +62,6 @@ import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.MapCounter;
 import org.apache.accumulo.core.util.PeekingIterator;
 import org.apache.accumulo.core.util.TextUtil;
-import org.apache.accumulo.fate.FateTxId;
-import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.manager.Manager;
 import org.apache.accumulo.manager.tableOps.ManagerRepo;
 import org.apache.accumulo.server.fs.VolumeManager;
@@ -376,7 +376,8 @@ class LoadFiles extends ManagerRepo {
       }
 
       if (cmp != 0) {
-        throw new IllegalStateException("Unexpected prev end row " + currTablet + " " + loadRange);
+        throw new IllegalStateException(
+            "Unexpected prev end row " + currTablet.getExtent() + " " + loadRange);
       }
 
       // we have found the first tablet in the range, add it to the list

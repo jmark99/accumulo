@@ -33,8 +33,6 @@ public interface ScanServerAttempt {
 
   String getServer();
 
-  long getEndTime();
-
   ScanServerAttempt.Result getResult();
 
 }

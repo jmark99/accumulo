@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.accumulo</groupId>
     <artifactId>accumulo-project</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
   <artifactId>accumulo-core</artifactId>
   <name>Apache Accumulo Core</name>
@@ -432,6 +432,7 @@
                   <exclude>**/TestCfCqSlice.java</exclude>
                   <exclude>**/TestCfCqSliceSeekingFilter.java</exclude>
                   <exclude>**/core/constraints/DefaultKeySizeConstraintTest.java</exclude>
+                  <exclude>**/core/rpc/SaslConnectionParamsTest.java</exclude>
                 </excludes>
               </configuration>
               <executions>
@@ -451,7 +452,8 @@
                       <include>**/IdleRatioScanPrioritizerTest.java</include>
                       <include>**/TestCfCqSlice.java</include>
                       <include>**/TestCfCqSliceSeekingFilter.java</include>
-                      <exclude>**/core/constraints/DefaultKeySizeConstraintTest.java</exclude>
+                      <include>**/core/constraints/DefaultKeySizeConstraintTest.java</include>
+                      <include>**/core/rpc/SaslConnectionParamsTest.java</include>
                     </includes>
                   </configuration>
                 </execution>

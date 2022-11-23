@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test.functional;
 
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
@@ -81,9 +81,12 @@ public class ServerSideErrorIT extends AccumuloClusterHarness {
 
       // remove the bad agg so accumulo can shutdown
       TableOperations to = c.tableOperations();
-      for (Entry<String,String> e : to.getProperties(tableName)) {
-        to.removeProperty(tableName, e.getKey());
-      }
+      Iterable<Entry<String,String>> tableProps = to.getProperties(tableName);
+      to.modifyProperties(tableName, properties -> {
+        for (Entry<String,String> e : tableProps) {
+          properties.remove(e.getKey());
+        }
+      });
 
       sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
 

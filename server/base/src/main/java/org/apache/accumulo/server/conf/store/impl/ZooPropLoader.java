@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.accumulo.fate.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.server.conf.codec.VersionedPropCodec;
 import org.apache.accumulo.server.conf.codec.VersionedProperties;
 import org.apache.accumulo.server.conf.store.PropStoreKey;
@@ -63,6 +63,9 @@ public class ZooPropLoader implements CacheLoader<PropStoreKey<?>,VersionedPrope
 
       Stat stat = new Stat();
       byte[] bytes = zrw.getData(propStoreKey.getPath(), propStoreWatcher, stat);
+      if (stat.getDataLength() == 0) {
+        return new VersionedProperties();
+      }
       VersionedProperties vProps = propCodec.fromBytes(stat.getVersion(), bytes);
 
       metrics.addLoadTime(

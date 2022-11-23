@@ -27,9 +27,9 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.LOCATION;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.PREV_ROW;
+import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 import static org.apache.accumulo.core.util.Validators.EXISTING_TABLE_NAME;
 import static org.apache.accumulo.core.util.Validators.NEW_TABLE_NAME;
-import static org.apache.accumulo.fate.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -141,9 +141,9 @@ import org.apache.accumulo.core.util.LocalityGroupUtil.LocalityGroupConfiguratio
 import org.apache.accumulo.core.util.MapCounter;
 import org.apache.accumulo.core.util.OpTimer;
 import org.apache.accumulo.core.util.Pair;
+import org.apache.accumulo.core.util.Retry;
 import org.apache.accumulo.core.util.TextUtil;
 import org.apache.accumulo.core.volume.VolumeConfiguration;
-import org.apache.accumulo.fate.util.Retry;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -1010,17 +1010,19 @@ public class TableOperationsImpl extends TableOperationsHelper {
     }
   }
 
-  @Override
-  public void modifyProperties(String tableName, final Consumer<Map<String,String>> mapMutator)
-      throws AccumuloException, AccumuloSecurityException, IllegalArgumentException,
-      ConcurrentModificationException {
-    EXISTING_TABLE_NAME.validate(tableName);
-    checkArgument(mapMutator != null, "mapMutator is null");
-
+  private Map<String,String> tryToModifyProperties(String tableName,
+      final Consumer<Map<String,String>> mapMutator) throws AccumuloException,
+      AccumuloSecurityException, IllegalArgumentException, ConcurrentModificationException {
     final TVersionedProperties vProperties =
         ThriftClientTypes.CLIENT.execute(context, client -> client
             .getVersionedTableProperties(TraceUtil.traceInfo(), context.rpcCreds(), tableName));
     mapMutator.accept(vProperties.getProperties());
+
+    // A reference to the map was passed to the user, maybe they still have the reference and are
+    // modifying it. Buggy Accumulo code could attempt to make modifications to the map after this
+    // point. Because of these potential issues, create an immutable snapshot of the map so that
+    // from here on the code is assured to always be dealing with the same map.
+    vProperties.setProperties(Map.copyOf(vProperties.getProperties()));
 
     try {
       // Send to server
@@ -1032,6 +1034,38 @@ public class TableOperationsImpl extends TableOperationsHelper {
       }
     } catch (TableNotFoundException e) {
       throw new AccumuloException(e);
+    }
+
+    return vProperties.getProperties();
+  }
+
+  @Override
+  public Map<String,String> modifyProperties(String tableName,
+      final Consumer<Map<String,String>> mapMutator)
+      throws AccumuloException, AccumuloSecurityException, IllegalArgumentException {
+    EXISTING_TABLE_NAME.validate(tableName);
+    checkArgument(mapMutator != null, "mapMutator is null");
+
+    Retry retry =
+        Retry.builder().infiniteRetries().retryAfter(25, MILLISECONDS).incrementBy(25, MILLISECONDS)
+            .maxWait(30, SECONDS).backOffFactor(1.5).logInterval(3, MINUTES).createRetry();
+
+    while (true) {
+      try {
+        var props = tryToModifyProperties(tableName, mapMutator);
+        retry.logCompletion(log, "Modifying properties for table " + tableName);
+        return props;
+      } catch (ConcurrentModificationException cme) {
+        try {
+          retry.logRetry(log, "Unable to modify table properties for " + tableName
+              + " because of concurrent modification");
+          retry.waitForNextAttempt(log, "modify table properties for " + tableName);
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+      } finally {
+        retry.useRetry();
+      }
     }
   }
 
@@ -1064,7 +1098,7 @@ public class TableOperationsImpl extends TableOperationsHelper {
   }
 
   void checkLocalityGroups(String tableName, String propChanged)
-      throws AccumuloException, TableNotFoundException {
+      throws AccumuloException, AccumuloSecurityException, TableNotFoundException {
     if (LocalityGroupUtil.isLocalityGroupProperty(propChanged)) {
       Map<String,String> allProps = getConfiguration(tableName);
       try {
@@ -1788,11 +1822,9 @@ public class TableOperationsImpl extends TableOperationsHelper {
     EXISTING_TABLE_NAME.validate(tableName);
 
     clearSamplerOptions(tableName);
-    List<Pair<String,String>> props =
-        new SamplerConfigurationImpl(samplerConfiguration).toTableProperties();
-    for (Pair<String,String> pair : props) {
-      setProperty(tableName, pair.getFirst(), pair.getSecond());
-    }
+    Map<String,String> props =
+        new SamplerConfigurationImpl(samplerConfiguration).toTablePropertiesMap();
+    modifyProperties(tableName, properties -> properties.putAll(props));
   }
 
   @Override
@@ -1806,7 +1838,7 @@ public class TableOperationsImpl extends TableOperationsHelper {
 
   @Override
   public SamplerConfiguration getSamplerConfiguration(String tableName)
-      throws TableNotFoundException, AccumuloException {
+      throws TableNotFoundException, AccumuloSecurityException, AccumuloException {
     EXISTING_TABLE_NAME.validate(tableName);
 
     AccumuloConfiguration conf = new ConfigurationCopy(this.getProperties(tableName));
@@ -1905,7 +1937,9 @@ public class TableOperationsImpl extends TableOperationsHelper {
       context.requireNotOffline(tableId, tableName);
       binnedRanges.clear();
       try {
-        retry.waitForNextAttempt();
+        retry.waitForNextAttempt(log,
+            String.format("locating tablets in table %s(%s) for %d ranges", tableName, tableId,
+                rangeList.size()));
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -2034,11 +2068,8 @@ public class TableOperationsImpl extends TableOperationsHelper {
       }
     }
 
-    Set<Entry<String,String>> es =
-        SummarizerConfiguration.toTableProperties(newConfigSet).entrySet();
-    for (Entry<String,String> entry : es) {
-      setProperty(tableName, entry.getKey(), entry.getValue());
-    }
+    Map<String,String> props = SummarizerConfiguration.toTableProperties(newConfigSet);
+    modifyProperties(tableName, properties -> properties.putAll(props));
   }
 
   @Override
@@ -2049,14 +2080,11 @@ public class TableOperationsImpl extends TableOperationsHelper {
     Collection<SummarizerConfiguration> summarizerConfigs =
         SummarizerConfiguration.fromTableProperties(getProperties(tableName));
 
-    for (SummarizerConfiguration sc : summarizerConfigs) {
-      if (predicate.test(sc)) {
-        Set<String> ks = sc.toTableProperties().keySet();
-        for (String key : ks) {
-          removeProperty(tableName, key);
-        }
-      }
-    }
+    modifyProperties(tableName,
+        properties -> summarizerConfigs.stream().filter(predicate)
+            .map(sc -> sc.toTableProperties().keySet())
+            .forEach(keySet -> keySet.forEach(properties::remove)));
+
   }
 
   @Override
