@@ -117,10 +117,10 @@ public class ShellIT extends SharedMiniClusterBase {
   public LineReader reader;
   public Terminal terminal;
 
-  void execExpectList(String cmd, boolean expecteGoodExit, List<String> expectedStrings)
+  void execExpectList(String cmd, boolean expectedGoodExit, List<String> expectedStrings)
       throws IOException {
     exec(cmd);
-    if (expecteGoodExit) {
+    if (expectedGoodExit) {
       assertGoodExit("", true);
     } else {
       assertBadExit("", true);
@@ -281,7 +281,7 @@ public class ShellIT extends SharedMiniClusterBase {
     // leave all table contexts
     exec("notable", true);
     // without option cannot insert when not in a table context, also cannot add to a table
-    // using 'accumulo shell -e "insert ...." fron command line due to no table context being set.
+    // using 'accumulo shell -e "insert ...."' from command line due to no table context being set.
     exec("insert row1 f q tab1", false, "java.lang.IllegalStateException: Not in a table context");
     // but using option can insert to a table with tablename option without being in a table context
     exec("insert row1 f q tab1 --table tab1", true);
@@ -612,6 +612,67 @@ public class ShellIT extends SharedMiniClusterBase {
     // are returned.
     exec("getsplits -m 0", true,
         "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\na\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\n");
+  }
+
+  @Test
+  public void testScanMetadataAsNonAdmin() throws Exception {
+    log.info(">>>> Starting testScanMetadtaAsNonAdmin...");
+    log.info(">>>> create non-admin user...");
+    input.set("secret\nsecret\n");
+    exec("createuser user1", true);
+    exec("users", true, "user1\nroot\n");
+    // have root create a couple of tables
+    exec("createtable roottab1", true);
+    exec("createtable roottab2", true);
+    exec("tables", true, "roottab1\nroottab2\n");
+    // add some data to the tables
+    exec("table roottab1", true);
+    exec("insert row1 cf1 cq1 val1", true);
+    exec("insert row2 cf2 cq2 val2", true);
+    exec("insert row3 cf3 cq3 val3", true);
+    exec("scan", true, "row1 cf1:cq1 []\tval1\nrow2 cf2:cq2 []\tval2\nrow3 cf3:cq3 []\tval3");
+    exec("table roottab2", true);
+    exec("insert row11 cf11 cq11 val11", true);
+    exec("insert row22 cf22 cq22 val22", true);
+    exec("insert row33 cf33 cq33 val33", true);
+    exec("scan", true);
+    exec("scan", true,
+        "row11 cf11:cq11 []\tval11\nrow22 cf22:cq22 []\tval22\nrow33 cf33:cq33 []\tval33\n");
+    // before switching to user1, grant user1 the ability to create tables
+    exec("grant System.CREATE_TABLE -s -u user1", true);
+
+    // switch to user1 and create a table and data
+    input.set("secret\n");
+    exec("user user1", true);
+    exec("createtable user1tab1", true);
+    exec("insert row1 cf1 cq1 val1", true);
+    exec("insert row2 cf2 cq2 val2", true);
+    exec("insert row3 cf3 cq3 val3", true);
+    exec("scan", true, "row1 cf1:cq1 []\tval1\nrow2 cf2:cq2 []\tval2\nrow3 cf3:cq3 []\tval3");
+    // have user1 scan metadata table....should only see data for user1tab1
+    exec("tables -l", true);
+    exec("scan -t accumulo.metadata", true);
+    exec("whoami", true);
+    exec("users", true);
+
+    // change back to root, grant permission to user1 to read roottab2
+    log.info("getAdminUser(): {}", getAdminUser());
+    log.info("getAdminPrincipal(); {}", getAdminPrincipal());
+    log.info("getPrincipal(); {}", getPrincipal());
+    log.info("getRootPassword(); {}", getRootPassword());
+    log.info("getUser(0); {}", getUser(0));
+
+    input.set(getRootPassword() + "\n");
+    exec("user root", true);
+    exec("whoami", true);
+    exec("grant Table.READ -u user1 -t roottab1", true);
+    //
+    // // back to user1
+    input.set("secret\n");
+    exec("user user1", true);
+    exec("whoami", true);
+    // scan metadata...should see info for roottab2 and user1tab1
+    exec("scan -t accumulo.metadata", true);
   }
 
 }
