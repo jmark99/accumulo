@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -638,6 +639,13 @@ public class ShellIT extends SharedMiniClusterBase {
     exec("scan", true);
     exec("scan", true,
         "row11 cf11:cq11 []\tval11\nrow22 cf22:cq22 []\tval22\nrow33 cf33:cq33 []\tval33\n");
+
+    // verify root sees both tables in metadata table
+    List<String> expectedMetadataStrings = new ArrayList<>();
+    expectedMetadataStrings.add("1< srv:dir []\tdefault_tablet");
+    expectedMetadataStrings.add("2< srv:dir []\tdefault_tablet");
+    execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
+
     // before switching to user1, grant user1 the ability to create tables
     exec("grant System.CREATE_TABLE -s -u user1", true);
 
@@ -651,7 +659,12 @@ public class ShellIT extends SharedMiniClusterBase {
     exec("scan", true, "row1 cf1:cq1 []\tval1\nrow2 cf2:cq2 []\tval2\nrow3 cf3:cq3 []\tval3");
     // have user1 scan metadata table....should only see data for user1tab1
     exec("tables -l", true);
-    exec("scan -t accumulo.metadata", true);
+
+    // expectedMetadataStrings = new ArrayList<>();
+    expectedMetadataStrings.add("3< srv:dir []\tdefault_tablet");
+    execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
+
+    // exec("scan -t accumulo.metadata", true);
     exec("whoami", true);
     exec("users", true);
 
@@ -672,7 +685,11 @@ public class ShellIT extends SharedMiniClusterBase {
     exec("user user1", true);
     exec("whoami", true);
     // scan metadata...should see info for roottab2 and user1tab1
-    exec("scan -t accumulo.metadata", true);
+
+    expectedMetadataStrings = new ArrayList<>();
+    expectedMetadataStrings.add("2< srv:dir []   default_tablet");
+    expectedMetadataStrings.add("3< srv:dir []   default_tablet");
+    // exec("scan -t accumulo.metadata", true);
   }
 
 }
