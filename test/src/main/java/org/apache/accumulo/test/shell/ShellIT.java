@@ -21,6 +21,7 @@ package org.apache.accumulo.test.shell;
 import static org.apache.accumulo.harness.AccumuloITBase.MINI_CLUSTER_ONLY;
 import static org.apache.accumulo.harness.AccumuloITBase.SUNNY_DAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
@@ -34,10 +35,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import org.apache.accumulo.core.data.TableId;
+import org.apache.accumulo.core.metadata.MetadataTable;
+import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.harness.SharedMiniClusterBase;
 import org.apache.accumulo.shell.Shell;
 import org.jline.reader.LineReader;
@@ -618,7 +623,31 @@ public class ShellIT extends SharedMiniClusterBase {
   @Test
   public void testScanMetadataAsNonAdmin() throws Exception {
     log.info(">>>> Starting testScanMetadtaAsNonAdmin...");
-    log.info(">>>> create non-admin user...");
+
+    final String rootTable1 = "rootTable1";
+    final String rootTable2 = "rootTable2";
+    final String userTable1 = "userTable1";
+    final TableId tableId1 = TableId.of("1");
+    final TableId tableId2 = TableId.of("2");
+    final TableId tableId3 = TableId.of("3");
+
+    Map<TableId,String> tableIdToNameMap = new HashMap<>();
+    tableIdToNameMap.put(RootTable.ID, MetadataTable.NAME);
+    tableIdToNameMap.put(MetadataTable.ID, MetadataTable.NAME);
+    tableIdToNameMap.put(tableId1, rootTable1);
+    tableIdToNameMap.put(tableId2, rootTable2);
+    tableIdToNameMap.put(tableId3, userTable1);
+
+    //
+    // root user creates two tables
+    //
+    exec("createtable " + rootTable1, true);
+    exec("createtable " + rootTable2, true);
+    //
+    // add data to table to get metadata entries
+    //
+
+
     input.set("secret\nsecret\n");
     exec("createuser user1", true);
     exec("users", true, "user1\nroot\n");
@@ -645,6 +674,11 @@ public class ShellIT extends SharedMiniClusterBase {
     expectedMetadataStrings.add("1< srv:dir []\tdefault_tablet");
     expectedMetadataStrings.add("2< srv:dir []\tdefault_tablet");
     execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
+    // Verify table 3 is not seen
+    assertThrows(AssertionError.class, () -> {
+      String invalidString = "3< srv:dir []\tdefault_tablet";
+      execExpectList("scan -t accumulo.metadata", true, Arrays.asList(invalidString));
+    });
 
     // before switching to user1, grant user1 the ability to create tables
     exec("grant System.CREATE_TABLE -s -u user1", true);
@@ -657,16 +691,21 @@ public class ShellIT extends SharedMiniClusterBase {
     exec("insert row2 cf2 cq2 val2", true);
     exec("insert row3 cf3 cq3 val3", true);
     exec("scan", true, "row1 cf1:cq1 []\tval1\nrow2 cf2:cq2 []\tval2\nrow3 cf3:cq3 []\tval3");
+
     // have user1 scan metadata table....should only see data for user1tab1
     exec("tables -l", true);
 
-    // expectedMetadataStrings = new ArrayList<>();
     expectedMetadataStrings.add("3< srv:dir []\tdefault_tablet");
     execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
+    // assert root tables are not seen
+    // assertThrows(AssertionError.class, () -> {
+    // List<String> invalidStrings = new ArrayList<>();
+    // invalidStrings.add("1< srv:dir []\tdefault_tablet");
+    // invalidStrings.add("2< srv:dir []\tdefault_tablet");
+    // execExpectList("scan -t accumulo.metadata", true, Arrays.asList(invalidStrings));
+    // });
 
-    // exec("scan -t accumulo.metadata", true);
     exec("whoami", true);
-    exec("users", true);
 
     // change back to root, grant permission to user1 to read roottab2
     log.info("getAdminUser(): {}", getAdminUser());
@@ -679,17 +718,22 @@ public class ShellIT extends SharedMiniClusterBase {
     exec("user root", true);
     exec("whoami", true);
     exec("grant Table.READ -u user1 -t roottab1", true);
-    //
-    // // back to user1
+
+    // back to user1
     input.set("secret\n");
     exec("user user1", true);
     exec("whoami", true);
-    // scan metadata...should see info for roottab2 and user1tab1
 
+    // scan metadata...should see info for roottab2 and user1tab1
     expectedMetadataStrings = new ArrayList<>();
-    expectedMetadataStrings.add("2< srv:dir []   default_tablet");
-    expectedMetadataStrings.add("3< srv:dir []   default_tablet");
-    // exec("scan -t accumulo.metadata", true);
+    expectedMetadataStrings.add("2< srv:dir []\tdefault_tablet");
+    expectedMetadataStrings.add("3< srv:dir []\tdefault_tablet");
+    execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
+    // assert that it cannot see table ID 1
+    // assertThrows(AssertionError.class, () -> {
+    // String invalidString = "1< srv:dir []\tdefault_tablet";
+    // execExpectList("scan -t accumulo.metadata", true, Arrays.asList(invalidString));
+    // });
   }
 
 }
