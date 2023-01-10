@@ -638,102 +638,100 @@ public class ShellIT extends SharedMiniClusterBase {
     tableIdToNameMap.put(tableId2, rootTable2);
     tableIdToNameMap.put(tableId3, userTable1);
 
+    List<String> expectedStrings = new ArrayList<>();
+    // List<String> nonExpectedStrings = new ArrayList<>();
+
     //
-    // root user creates two tables
+    // User 'root' creates rootTable1
     //
     exec("createtable " + rootTable1, true);
+    //
+    // Scan metadata table. Verify tableId1 present only
+    //
+    expectedStrings.add(tableId1 + "< srv:dir []\tdefault_tablet");
+    execExpectList("scan -t accumulo.metadata", true, expectedStrings);
+    expectedStrings.add(tableId2 + "< srv:dir []\tdefault_tablet");
+    assertThrows(AssertionError.class, () -> {
+      execExpectList("scan -t accumulo.metadata", true, expectedStrings);
+    });
+    //
+    // User 'root' creates rootTable2
+    //
     exec("createtable " + rootTable2, true);
     //
-    // add data to table to get metadata entries
+    // Scan metadata table. Verify tableId1 and tableId2 present
     //
-
-
+    execExpectList("scan -t accumulo.metadata", true, expectedStrings);
+    expectedStrings.add(tableId3 + "< srv:dir []\tdefault_tablet");
+    assertThrows(AssertionError.class, () -> {
+      execExpectList("scan -t accumulo.metadata", true, expectedStrings);
+    });
+    exec("tables", true, rootTable1 + "\n" + rootTable2 + "\n");
+    //
+    // create user1 and grant ability to create tables
+    //
     input.set("secret\nsecret\n");
     exec("createuser user1", true);
     exec("users", true, "user1\nroot\n");
-    // have root create a couple of tables
-    exec("createtable roottab1", true);
-    exec("createtable roottab2", true);
-    exec("tables", true, "roottab1\nroottab2\n");
-    // add some data to the tables
-    exec("table roottab1", true);
-    exec("insert row1 cf1 cq1 val1", true);
-    exec("insert row2 cf2 cq2 val2", true);
-    exec("insert row3 cf3 cq3 val3", true);
-    exec("scan", true, "row1 cf1:cq1 []\tval1\nrow2 cf2:cq2 []\tval2\nrow3 cf3:cq3 []\tval3");
-    exec("table roottab2", true);
-    exec("insert row11 cf11 cq11 val11", true);
-    exec("insert row22 cf22 cq22 val22", true);
-    exec("insert row33 cf33 cq33 val33", true);
-    exec("scan", true);
-    exec("scan", true,
-        "row11 cf11:cq11 []\tval11\nrow22 cf22:cq22 []\tval22\nrow33 cf33:cq33 []\tval33\n");
-
-    // verify root sees both tables in metadata table
-    List<String> expectedMetadataStrings = new ArrayList<>();
-    expectedMetadataStrings.add("1< srv:dir []\tdefault_tablet");
-    expectedMetadataStrings.add("2< srv:dir []\tdefault_tablet");
-    execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
-    // Verify table 3 is not seen
-    assertThrows(AssertionError.class, () -> {
-      String invalidString = "3< srv:dir []\tdefault_tablet";
-      execExpectList("scan -t accumulo.metadata", true, Arrays.asList(invalidString));
-    });
-
-    // before switching to user1, grant user1 the ability to create tables
     exec("grant System.CREATE_TABLE -s -u user1", true);
-
-    // switch to user1 and create a table and data
+    //
+    // switch to user1
+    //
     input.set("secret\n");
     exec("user user1", true);
+    //
+    // user 'user1' creates userTable1
+    //
     exec("createtable user1tab1", true);
-    exec("insert row1 cf1 cq1 val1", true);
-    exec("insert row2 cf2 cq2 val2", true);
-    exec("insert row3 cf3 cq3 val3", true);
-    exec("scan", true, "row1 cf1:cq1 []\tval1\nrow2 cf2:cq2 []\tval2\nrow3 cf3:cq3 []\tval3");
 
-    // have user1 scan metadata table....should only see data for user1tab1
-    exec("tables -l", true);
+    //
+    // FOR NOW, user1 can see info for all three tables
+    //
+    execExpectList("scan -t accumulo.metadata", true, expectedStrings);
 
-    expectedMetadataStrings.add("3< srv:dir []\tdefault_tablet");
-    execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
-    // assert root tables are not seen
+    //
+    // AFTER filter created, user1 should only see info from table created by user1
+    //
+    // reset expectedStrings List
+    // expectedStrings = new ArrayList<>();
+    // expectedStrings.add(tableId3 + "< svr:dir []\tdefault_tablet");
+    // execExpectList("scan -t accumulo.metadata", true, expectedStrings);
+    // nonExpectedStrings.add(tableId1 + "< svr:dir []\tdefault_tablet");
+    // nonExpectedStrings.add(tableId2 + "< svr:dir []\tdefault_tablet");
     // assertThrows(AssertionError.class, () -> {
-    // List<String> invalidStrings = new ArrayList<>();
-    // invalidStrings.add("1< srv:dir []\tdefault_tablet");
-    // invalidStrings.add("2< srv:dir []\tdefault_tablet");
-    // execExpectList("scan -t accumulo.metadata", true, Arrays.asList(invalidStrings));
+    // execExpectList("scan -t accumulo.metadata", true, nonExpectedStrings);
     // });
 
-    exec("whoami", true);
+    //
+    // Switch back to 'root'.
+    // Have 'root' grant user1 permission to view rootTable2
+    // Switch back to 'user1'
+    // 'user1' should then be able to view metadata info for tableId2 and TableId3
+    //
 
-    // change back to root, grant permission to user1 to read roottab2
+    input.set(getRootPassword() + "\n");
+    exec("user root", true);
+    exec("whoami", true, "root");
+    exec("grant Table.READ -u user1 -t " + rootTable2, true);
+
+    input.set("secret\n");
+    exec("user user1", true);
+    exec("whoami", true, "user1");
+
+    // scan metadata seeing info for only rootTable2 and userTable1 and not rootTable1
+    // expectedStrings = new ArrayList<>();
+    // expectedStrings.add(rootTable2 + "< svr:dir []\tdefault_tablet");
+    // expectedStrings.add(userTable1 + "< svr:dir []\tdefault_tablet");
+    // assertThrows(AssertionError.class, () -> {
+    // execExpectList("scan -t accumulo.metadata", true,
+    // Arrays.asList(rootTable1 + "< svr:dir []\tdefault_tablet"));
+    // });
+
     log.info("getAdminUser(): {}", getAdminUser());
     log.info("getAdminPrincipal(); {}", getAdminPrincipal());
     log.info("getPrincipal(); {}", getPrincipal());
     log.info("getRootPassword(); {}", getRootPassword());
     log.info("getUser(0); {}", getUser(0));
-
-    input.set(getRootPassword() + "\n");
-    exec("user root", true);
-    exec("whoami", true);
-    exec("grant Table.READ -u user1 -t roottab1", true);
-
-    // back to user1
-    input.set("secret\n");
-    exec("user user1", true);
-    exec("whoami", true);
-
-    // scan metadata...should see info for roottab2 and user1tab1
-    expectedMetadataStrings = new ArrayList<>();
-    expectedMetadataStrings.add("2< srv:dir []\tdefault_tablet");
-    expectedMetadataStrings.add("3< srv:dir []\tdefault_tablet");
-    execExpectList("scan -t accumulo.metadata", true, expectedMetadataStrings);
-    // assert that it cannot see table ID 1
-    // assertThrows(AssertionError.class, () -> {
-    // String invalidString = "1< srv:dir []\tdefault_tablet";
-    // execExpectList("scan -t accumulo.metadata", true, Arrays.asList(invalidString));
-    // });
   }
 
 }
