@@ -32,11 +32,15 @@ import org.apache.accumulo.core.iterators.SortedKeyValueIterator;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.tabletserver.thrift.IteratorConfig;
 import org.apache.accumulo.core.tabletserver.thrift.TIteratorSetting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * System utility class. Not for client use.
  */
 public class SystemIteratorUtil {
+
+  static final Logger log = LoggerFactory.getLogger(SystemIteratorUtil.class);
 
   public static TIteratorSetting toTIteratorSetting(IteratorSetting is) {
     return new TIteratorSetting(is.getPriority(), is.getName(), is.getIteratorClass(),
@@ -61,10 +65,12 @@ public class SystemIteratorUtil {
   public static SortedKeyValueIterator<Key,Value> setupSystemScanIterators(
       SortedKeyValueIterator<Key,Value> source, Set<Column> cols, Authorizations auths,
       byte[] defaultVisibility, AccumuloConfiguration conf) throws IOException {
+    log.info(">>>> SortedKeyValueIterator::setupSystemScanIterators");
     SortedKeyValueIterator<Key,Value> delIter =
         DeletingIterator.wrap(source, false, DeletingIterator.getBehavior(conf));
     ColumnFamilySkippingIterator cfsi = new ColumnFamilySkippingIterator(delIter);
     SortedKeyValueIterator<Key,Value> colFilter = ColumnQualifierFilter.wrap(cfsi, cols);
-    return VisibilityFilter.wrap(colFilter, auths, defaultVisibility);
+    MetadataScanFilter metascanner = new MetadataScanFilter(colFilter);
+    return VisibilityFilter.wrap(metascanner, auths, defaultVisibility);
   }
 }

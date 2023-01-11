@@ -50,8 +50,13 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.io.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CreateTableCommand extends Command {
+
+  public static final Logger log = LoggerFactory.getLogger(CreateTableCommand.class);
+
   private Option createTableOptCopySplits;
   private Option createTableOptCopyConfig;
   private Option createTableOptSplit;
@@ -71,8 +76,12 @@ public class CreateTableCommand extends Command {
       throws AccumuloException, AccumuloSecurityException, TableExistsException,
       TableNotFoundException, IOException {
 
+    log.info(">>>> ctc::execute");
+
     final String tableName = cl.getArgs()[0];
     NewTableConfiguration ntc = new NewTableConfiguration();
+
+    log.info(">>>> ctc::table -> {}", tableName);
 
     NEW_TABLE_NAME.validate(tableName);
 
@@ -111,7 +120,13 @@ public class CreateTableCommand extends Command {
 
     Map<String,String> props = ShellUtil.parseMapOpt(cl, createTableOptInitProp);
 
+    log.info(">>>> ctc - props:");
+    props.forEach((k,v) -> {
+      log.info(">>>> {}, {}", k, v);
+    });
+
     // Set iterator if supplied
+    log.info(">>>> ctc - attach iterators if supplied");
     if (cl.hasOption(createTableOptIteratorProps.getOpt())) {
       ntc = attachIteratorToNewTable(cl, shellState, ntc);
     }
@@ -208,6 +223,7 @@ public class CreateTableCommand extends Command {
    */
   private NewTableConfiguration attachIteratorToNewTable(final CommandLine cl,
       final Shell shellState, NewTableConfiguration ntc) {
+    log.info(">>>> ntc::attachIteratortoNewtable");
     EnumSet<IteratorScope> scopeEnumSet;
     IteratorSetting iteratorSetting;
     if (shellState.iteratorProfiles.isEmpty()) {

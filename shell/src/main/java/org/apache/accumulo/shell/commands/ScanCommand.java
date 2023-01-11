@@ -54,8 +54,12 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.io.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ScanCommand extends Command {
+
+  static final Logger log = LoggerFactory.getLogger(ScanCommand.class);
 
   private Option scanOptAuths, scanOptRow, scanOptColumns, disablePaginationOpt, showFewOpt,
       formatterOpt, interpreterOpt, formatterInterpeterOpt, outputFileOpt, scanOptCf, scanOptCq;
@@ -186,7 +190,7 @@ public class ScanCommand extends Command {
 
   protected void addScanIterators(final Shell shellState, CommandLine cl, final ScannerBase scanner,
       final String tableName) throws Exception {
-
+    log.info(">>>> ScanCommand::addScanIterators");
     List<IteratorSetting> tableScanIterators;
     if (cl.hasOption(profileOpt.getOpt())) {
       String profile = cl.getOptionValue(profileOpt.getOpt());
