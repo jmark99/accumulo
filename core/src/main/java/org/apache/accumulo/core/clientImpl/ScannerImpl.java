@@ -33,6 +33,8 @@ import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.security.Authorizations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * provides scanner functionality
@@ -44,6 +46,8 @@ import org.apache.accumulo.core.security.Authorizations;
  *
  */
 public class ScannerImpl extends ScannerOptions implements Scanner {
+
+  static final Logger log = LoggerFactory.getLogger(ScannerImpl.class);
 
   // keep a list of columns over which to scan
   // keep track of the last thing read
@@ -89,6 +93,7 @@ public class ScannerImpl extends ScannerOptions implements Scanner {
 
     void readBatch(ScannerIterator iter) {
       synchronized (ScannerImpl.this) {
+        log.info(">>>> iters.get({})", iter.getClass().getSimpleName());
         // This iter just had some activity, so access it in map so it becomes the most recently
         // used.
         iters.get(iter);
@@ -97,6 +102,7 @@ public class ScannerImpl extends ScannerOptions implements Scanner {
 
     void finished(ScannerIterator iter) {
       synchronized (ScannerImpl.this) {
+        log.info(">>>> iters.remove({})", iter.getClass().getSimpleName());
         iters.remove(iter);
       }
     }

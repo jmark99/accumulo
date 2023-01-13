@@ -21,13 +21,19 @@ package org.apache.accumulo.test.functional;
 import java.io.IOException;
 import java.util.Map;
 
+import org.apache.accumulo.core.client.PluginEnvironment;
+import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.iterators.IteratorEnvironment;
 import org.apache.accumulo.core.iterators.SkippingIterator;
 import org.apache.accumulo.core.iterators.SortedKeyValueIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DropModIter extends SkippingIterator {
+
+  private static final Logger log = LoggerFactory.getLogger(DropModIter.class);
 
   private int mod;
   private int drop;
@@ -41,6 +47,18 @@ public class DropModIter extends SkippingIterator {
   public void init(SortedKeyValueIterator<Key,Value> source, Map<String,String> options,
       IteratorEnvironment env) throws IOException {
     super.init(source, options, env);
+    log.info(">>>> tableId: {}", env.getTableId());
+    log.info(">>>> scope:   {}", env.getIteratorScope().toString());
+    PluginEnvironment pluginEnv = env.getPluginEnv();
+    PluginEnvironment.Configuration configuration = pluginEnv.getConfiguration();
+    log.info(">>>> configuration: {}", configuration.toString());
+    PluginEnvironment.Configuration configuration1 = pluginEnv.getConfiguration(env.getTableId());
+    log.info(">>>> configuration1: {}", configuration1.toString());
+    try {
+      log.info(">>>> tableName: {}", pluginEnv.getTableName(env.getTableId()));
+    } catch (TableNotFoundException e) {
+      throw new RuntimeException(e);
+    }
     this.mod = Integer.parseInt(options.get("mod"));
     this.drop = Integer.parseInt(options.get("drop"));
   }

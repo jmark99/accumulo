@@ -121,7 +121,7 @@ public class CreateTableCommand extends Command {
     Map<String,String> props = ShellUtil.parseMapOpt(cl, createTableOptInitProp);
 
     log.info(">>>> ctc - props:");
-    props.forEach((k,v) -> {
+    props.forEach((k, v) -> {
       log.info(">>>> {}, {}", k, v);
     });
 

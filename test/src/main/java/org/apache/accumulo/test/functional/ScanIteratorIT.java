@@ -112,6 +112,7 @@ public class ScanIteratorIT extends AccumuloClusterHarness {
 
   @Test
   public void run() throws Exception {
+    log.info(">>>> run...");
     String tableName = getUniqueNames(1)[0];
     try (AccumuloClient c = Accumulo.newClient().from(getClientProps()).build()) {
 
@@ -197,16 +198,19 @@ public class ScanIteratorIT extends AccumuloClusterHarness {
 
   @Test
   public void testAuthsPresentInIteratorEnvironment() throws Exception {
+    log.info(">>>> testAuthsPresentInIteratorEnvironment...");
     runTest(AuthsIterator.AUTHS, false);
   }
 
   @Test
   public void testAuthsNotPresentInIteratorEnvironment() throws Exception {
+    log.info(">>>> testAuthsNotPresentInIteratorEnvironment...");
     runTest(new Authorizations("B"), true);
   }
 
   @Test
   public void testEmptyAuthsInIteratorEnvironment() throws Exception {
+    log.info(">>>> testEmptyAuthsInIteratorEnvironment...");
     runTest(Authorizations.EMPTY, true);
   }
 

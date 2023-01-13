@@ -32,17 +32,21 @@ import org.apache.accumulo.core.client.ScannerBase.ConsistencyLevel;
 import org.apache.accumulo.core.client.TableDeletedException;
 import org.apache.accumulo.core.client.TableOfflineException;
 import org.apache.accumulo.core.clientImpl.ThriftScanner.ScanState;
+import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.KeyValue;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.security.Authorizations;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 
 public class ScannerIterator implements Iterator<Entry<Key,Value>> {
+
+  static final Logger log = LoggerFactory.getLogger(ScannerIterator.class);
 
   // scanner options
   private long timeOut;
@@ -69,6 +73,7 @@ public class ScannerIterator implements Iterator<Entry<Key,Value>> {
   ScannerIterator(ClientContext context, TableId tableId, Authorizations authorizations,
       Range range, int size, long timeOut, ScannerOptions options, boolean isolated,
       long readaheadThreshold, ScannerImpl.Reporter reporter) {
+    log.info(">>>> ScannerIterator...");
     this.context = context;
     this.timeOut = timeOut;
     this.readaheadThreshold = readaheadThreshold;
