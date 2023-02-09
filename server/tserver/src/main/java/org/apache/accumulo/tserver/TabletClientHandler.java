@@ -50,6 +50,7 @@ import org.apache.accumulo.core.clientImpl.CompressedIterators;
 import org.apache.accumulo.core.clientImpl.DurabilityImpl;
 import org.apache.accumulo.core.clientImpl.TabletType;
 import org.apache.accumulo.core.clientImpl.thrift.SecurityErrorCode;
+import org.apache.accumulo.core.clientImpl.thrift.TInfo;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftTableOperationException;
@@ -86,18 +87,19 @@ import org.apache.accumulo.core.spi.cache.BlockCache;
 import org.apache.accumulo.core.summary.Gatherer;
 import org.apache.accumulo.core.summary.Gatherer.FileSystemResolver;
 import org.apache.accumulo.core.summary.SummaryCollection;
+import org.apache.accumulo.core.tablet.thrift.TUnloadTabletGoal;
+import org.apache.accumulo.core.tablet.thrift.TabletManagementClientService;
+import org.apache.accumulo.core.tabletingest.thrift.ConstraintViolationException;
+import org.apache.accumulo.core.tabletingest.thrift.TDurability;
+import org.apache.accumulo.core.tabletingest.thrift.TabletIngestClientService;
 import org.apache.accumulo.core.tabletserver.thrift.ActiveCompaction;
-import org.apache.accumulo.core.tabletserver.thrift.ConstraintViolationException;
 import org.apache.accumulo.core.tabletserver.thrift.NoSuchScanIDException;
 import org.apache.accumulo.core.tabletserver.thrift.NotServingTabletException;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionQueueSummary;
-import org.apache.accumulo.core.tabletserver.thrift.TDurability;
 import org.apache.accumulo.core.tabletserver.thrift.TExternalCompactionJob;
-import org.apache.accumulo.core.tabletserver.thrift.TUnloadTabletGoal;
-import org.apache.accumulo.core.tabletserver.thrift.TabletClientService;
+import org.apache.accumulo.core.tabletserver.thrift.TabletServerClientService;
 import org.apache.accumulo.core.tabletserver.thrift.TabletStats;
 import org.apache.accumulo.core.trace.TraceUtil;
-import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.core.util.ByteBufferUtil;
 import org.apache.accumulo.core.util.Halt;
 import org.apache.accumulo.core.util.Pair;
@@ -136,7 +138,8 @@ import com.google.common.cache.Cache;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 
-public class TabletClientHandler implements TabletClientService.Iface {
+public class TabletClientHandler implements TabletServerClientService.Iface,
+    TabletIngestClientService.Iface, TabletManagementClientService.Iface {
 
   private static final Logger log = LoggerFactory.getLogger(TabletClientHandler.class);
   private final long MAX_TIME_TO_WAIT_FOR_SCAN_RESULT_MILLIS;
@@ -515,13 +518,15 @@ public class TabletClientHandler implements TabletClientService.Iface {
   }
 
   private void updateAvgCommitTime(long time, int size) {
-    if (size > 0)
+    if (size > 0) {
       server.updateMetrics.addCommitTime((long) (time / (double) size));
+    }
   }
 
   private void updateAvgPrepTime(long time, int size) {
-    if (size > 0)
+    if (size > 0) {
       server.updateMetrics.addCommitPrep((long) (time / (double) size));
+    }
   }
 
   @Override
@@ -1208,8 +1213,9 @@ public class TabletClientHandler implements TabletClientService.Iface {
     List<Tablet> tabletsToFlush = server.getOnlineTablets().values().stream()
         .filter(tablet -> ke.overlaps(tablet.getExtent())).collect(toList());
 
-    if (tabletsToFlush.isEmpty())
+    if (tabletsToFlush.isEmpty()) {
       return; // no tablets to flush
+    }
 
     // read the flush id once from zookeeper instead of reading it for each tablet
     final long flushID;

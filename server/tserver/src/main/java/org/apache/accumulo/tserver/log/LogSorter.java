@@ -90,8 +90,9 @@ public class LogSorter {
       log.debug("Sorting {} to {} using sortId {}", src, dest, sortId);
 
       synchronized (currentWork) {
-        if (currentWork.containsKey(sortId))
+        if (currentWork.containsKey(sortId)) {
           return;
+        }
         currentWork.put(sortId, this);
       }
 
@@ -164,10 +165,7 @@ public class LogSorter {
         return;
       }
 
-      @SuppressWarnings("deprecation")
-      Property prop = sortedLogConf.resolve(Property.TSERV_WAL_SORT_BUFFER_SIZE,
-          Property.TSERV_SORT_BUFFER_SIZE);
-      final long bufferSize = sortedLogConf.getAsBytes(prop);
+      final long bufferSize = sortedLogConf.getAsBytes(Property.TSERV_WAL_SORT_BUFFER_SIZE);
       Thread.currentThread().setName("Sorting " + name + " for recovery");
       while (true) {
         final ArrayList<Pair<LogFileKey,LogFileValue>> buffer = new ArrayList<>();
@@ -207,8 +205,9 @@ public class LogSorter {
 
     public synchronized long getSortTime() {
       if (sortStart > 0) {
-        if (sortStop > 0)
+        if (sortStop > 0) {
           return sortStop - sortStart;
+        }
         return System.currentTimeMillis() - sortStart;
       }
       return 0;
@@ -227,9 +226,8 @@ public class LogSorter {
   public LogSorter(ServerContext context, AccumuloConfiguration conf) {
     this.context = context;
     this.sortedLogConf = extractSortedLogConfig(conf);
-    @SuppressWarnings("deprecation")
-    int threadPoolSize = conf.getCount(conf.resolve(Property.TSERV_WAL_SORT_MAX_CONCURRENT,
-        Property.TSERV_RECOVERY_MAX_CONCURRENT));
+
+    int threadPoolSize = conf.getCount(Property.TSERV_WAL_SORT_MAX_CONCURRENT);
     this.threadPool = ThreadPools.getServerThreadPools().createFixedThreadPool(threadPoolSize,
         this.getClass().getName(), true);
     this.walBlockSize = DfsLogger.getWalBlockSize(conf);
@@ -247,7 +245,7 @@ public class LogSorter {
     ConfigurationCopy copy = new ConfigurationCopy(conf);
     props.forEach((prop, val) -> {
       String tableProp = tablePrefix + prop;
-      if (Property.isTablePropertyValid(tableProp, val)) {
+      if (Property.isValidProperty(tableProp, val) && Property.isValidTablePropertyKey(tableProp)) {
         log.debug("Using property for writing sorted files: {}={}", tableProp, val);
         copy.set(tableProp, val);
       } else {

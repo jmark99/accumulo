@@ -18,8 +18,8 @@
  */
 package org.apache.accumulo.manager.tableOps.bulkVer2;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.PREV_ROW;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -42,6 +42,7 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.fate.Repo;
+import org.apache.accumulo.core.file.FilePrefix;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata;
 import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
 import org.apache.accumulo.manager.Manager;
@@ -87,11 +88,13 @@ public class PrepBulkImport extends ManagerRepo {
 
   @Override
   public long isReady(long tid, Manager manager) throws Exception {
-    if (!Utils.getReadLock(manager, bulkInfo.tableId, tid).tryLock())
+    if (!Utils.getReadLock(manager, bulkInfo.tableId, tid).tryLock()) {
       return 100;
+    }
 
-    if (manager.onlineTabletServers().isEmpty())
+    if (manager.onlineTabletServers().isEmpty()) {
       return 500;
+    }
     manager.getContext().clearTableListCache();
 
     return Utils.reserveHdfsDirectory(manager, bulkInfo.sourceDir, tid);
@@ -125,8 +128,9 @@ public class PrepBulkImport extends ManagerRepo {
     int count;
 
     if (!tabletIter.hasNext() && equals(KeyExtent::prevEndRow, currTablet, currRange.getKey())
-        && equals(KeyExtent::endRow, currTablet, currRange.getKey()))
+        && equals(KeyExtent::endRow, currTablet, currRange.getKey())) {
       currRange = null;
+    }
 
     while (tabletIter.hasNext()) {
 
@@ -217,8 +221,8 @@ public class PrepBulkImport extends ManagerRepo {
 
     for (FileStatus file : files) {
       // since these are only valid files we know it has an extension
-      String newName =
-          "I" + namer.getNextName() + "." + FilenameUtils.getExtension(file.getPath().getName());
+      String newName = FilePrefix.BULK_IMPORT + namer.getNextName() + "."
+          + FilenameUtils.getExtension(file.getPath().getName());
       oldToNewNameMap.put(file.getPath().getName(), new Path(bulkDir, newName).getName());
     }
 
@@ -235,9 +239,10 @@ public class PrepBulkImport extends ManagerRepo {
   private Path createNewBulkDir(ServerContext context, VolumeManager fs, TableId tableId)
       throws IOException {
     Path tableDir = fs.matchingFileSystem(new Path(bulkInfo.sourceDir), context.getTablesDirs());
-    if (tableDir == null)
+    if (tableDir == null) {
       throw new IOException(bulkInfo.sourceDir
           + " is not in the same file system as any volume configured for Accumulo");
+    }
 
     Path directory = new Path(tableDir, tableId.canonical());
     fs.mkdirs(directory);
@@ -245,8 +250,9 @@ public class PrepBulkImport extends ManagerRepo {
     UniqueNameAllocator namer = context.getUniqueNameAllocator();
     while (true) {
       Path newBulkDir = new Path(directory, Constants.BULK_PREFIX + namer.getNextName());
-      if (fs.mkdirs(newBulkDir))
+      if (fs.mkdirs(newBulkDir)) {
         return newBulkDir;
+      }
       log.warn("Failed to create {} for unknown reason", newBulkDir);
 
       sleepUninterruptibly(3, TimeUnit.SECONDS);

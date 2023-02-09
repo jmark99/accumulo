@@ -18,9 +18,8 @@
  */
 package org.apache.accumulo.manager;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.Collections.emptySortedMap;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -93,7 +92,6 @@ import org.apache.accumulo.core.metadata.TabletState;
 import org.apache.accumulo.core.metadata.schema.Ample.DataLevel;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.TabletColumnFamily;
 import org.apache.accumulo.core.metrics.MetricsUtil;
-import org.apache.accumulo.core.replication.thrift.ReplicationCoordinator;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.spi.balancer.BalancerEnvironment;
 import org.apache.accumulo.core.spi.balancer.SimpleLoadBalancer;
@@ -101,7 +99,7 @@ import org.apache.accumulo.core.spi.balancer.TabletBalancer;
 import org.apache.accumulo.core.spi.balancer.data.TServerStatus;
 import org.apache.accumulo.core.spi.balancer.data.TabletMigration;
 import org.apache.accumulo.core.spi.balancer.data.TabletServerId;
-import org.apache.accumulo.core.tabletserver.thrift.TUnloadTabletGoal;
+import org.apache.accumulo.core.tablet.thrift.TUnloadTabletGoal;
 import org.apache.accumulo.core.trace.TraceUtil;
 import org.apache.accumulo.core.util.Halt;
 import org.apache.accumulo.core.util.Retry;
@@ -111,6 +109,7 @@ import org.apache.accumulo.manager.metrics.ManagerMetrics;
 import org.apache.accumulo.manager.recovery.RecoveryManager;
 import org.apache.accumulo.manager.state.TableCounts;
 import org.apache.accumulo.manager.tableOps.TraceRepo;
+import org.apache.accumulo.manager.upgrade.PreUpgradeValidation;
 import org.apache.accumulo.manager.upgrade.UpgradeCoordinator;
 import org.apache.accumulo.server.AbstractServer;
 import org.apache.accumulo.server.HighlyAvailableService;
@@ -191,8 +190,6 @@ public class Manager extends AbstractServer
       Collections.synchronizedSortedMap(new TreeMap<>());
   final EventCoordinator nextEvent = new EventCoordinator();
   private final Object mergeLock = new Object();
-  private Thread replicationWorkThread;
-  private Thread replicationAssignerThread;
   RecoveryManager recoveryManager = null;
   private final ManagerTime timeKeeper;
 
@@ -299,6 +296,7 @@ public class Manager extends AbstractServer
     }
 
     if (oldState != newState && (newState == ManagerState.HAVE_LOCK)) {
+      new PreUpgradeValidation().validate(getContext(), nextEvent);
       upgradeCoordinator.upgradeZookeeper(getContext(), nextEvent);
     }
 
@@ -1198,8 +1196,6 @@ public class Manager extends AbstractServer
     ThreadPools.watchCriticalScheduledTask(context.getScheduledExecutor().scheduleWithFixedDelay(
         () -> ScanServerMetadataEntries.clean(context), 10, 10, TimeUnit.MINUTES));
 
-    initializeZkForReplication(zReaderWriter, zroot);
-
     // Make sure that we have a secret key (either a new one or an old one from ZK) before we start
     // the manager client service.
     Thread authenticationTokenKeyManagerThread = null;
@@ -1238,22 +1234,6 @@ public class Manager extends AbstractServer
       sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
 
-    // if the replication name is ever set, then start replication services
-    final AtomicReference<TServer> replServer = new AtomicReference<>();
-    ScheduledFuture<?> future = context.getScheduledExecutor().scheduleWithFixedDelay(() -> {
-      try {
-        @SuppressWarnings("deprecation")
-        Property p = Property.REPLICATION_NAME;
-        if ((replServer.get() == null) && !getConfiguration().get(p).isEmpty()) {
-          log.info("{} was set, starting repl services.", p.getKey());
-          replServer.set(setupReplication());
-        }
-      } catch (UnknownHostException | KeeperException | InterruptedException e) {
-        log.error("Error occurred starting replication services. ", e);
-      }
-    }, 0, 5000, TimeUnit.MILLISECONDS);
-    ThreadPools.watchNonCriticalScheduledTask(future);
-
     // checking stored user hashes if any of them uses an outdated algorithm
     security.validateStoredUserCreditentials();
 
@@ -1269,18 +1249,8 @@ public class Manager extends AbstractServer
     final long deadline = System.currentTimeMillis() + MAX_CLEANUP_WAIT_TIME;
     try {
       statusThread.join(remaining(deadline));
-      if (null != replicationAssignerThread) {
-        replicationAssignerThread.join(remaining(deadline));
-      }
-      if (null != replicationWorkThread) {
-        replicationWorkThread.join(remaining(deadline));
-      }
     } catch (InterruptedException e) {
-      throw new IllegalStateException("Exception stopping replication workers", e);
-    }
-    var nullableReplServer = replServer.get();
-    if (nullableReplServer != null) {
-      nullableReplServer.stop();
+      throw new IllegalStateException("Exception stopping status thread", e);
     }
 
     // Signal that we want it to stop, and wait for it to do so.
@@ -1307,16 +1277,6 @@ public class Manager extends AbstractServer
     log.info("exiting");
   }
 
-  @Deprecated
-  private void initializeZkForReplication(ZooReaderWriter zReaderWriter, String zroot) {
-    try {
-      org.apache.accumulo.server.replication.ZooKeeperInitialization
-          .ensureZooKeeperInitialized(zReaderWriter, zroot);
-    } catch (KeeperException | InterruptedException e) {
-      throw new IllegalStateException("Exception while ensuring ZooKeeper is initialized", e);
-    }
-  }
-
   /**
    * Allows property configuration to block manager start-up waiting for a minimum number of
    * tservers to register in zookeeper. It also accepts a maximum time to wait - if the time
@@ -1330,8 +1290,7 @@ public class Manager extends AbstractServer
    * less, will block indefinitely.</li>
    * </ul>
    *
-   * @throws InterruptedException
-   *           if interrupted while blocking, propagated for caller to handle.
+   * @throws InterruptedException if interrupted while blocking, propagated for caller to handle.
    */
   private void blockForTservers() throws InterruptedException {
 
@@ -1399,41 +1358,6 @@ public class Manager extends AbstractServer
           tserverSet.size(), minTserverCount,
           TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - waitStart));
     }
-  }
-
-  @Deprecated
-  private TServer setupReplication()
-      throws UnknownHostException, KeeperException, InterruptedException {
-    ServerContext context = getContext();
-    // Start the replication coordinator which assigns tservers to service replication requests
-    var impl = new org.apache.accumulo.manager.replication.ManagerReplicationCoordinator(this);
-    ReplicationCoordinator.Iface haReplicationProxy =
-        HighlyAvailableServiceWrapper.service(impl, this);
-
-    var processor =
-        ThriftProcessorTypes.getReplicationCoordinatorTProcessor(haReplicationProxy, getContext());
-
-    ServerAddress replAddress = TServerUtils.startServer(context, getHostname(),
-        Property.MANAGER_REPLICATION_COORDINATOR_PORT, processor, "Manager Replication Coordinator",
-        "Replication Coordinator", null, Property.MANAGER_REPLICATION_COORDINATOR_MINTHREADS, null,
-        Property.MANAGER_REPLICATION_COORDINATOR_THREADCHECK, Property.GENERAL_MAX_MESSAGE_SIZE);
-
-    log.info("Started replication coordinator service at " + replAddress.address);
-    // Start the daemon to scan the replication table and make units of work
-    replicationWorkThread = Threads.createThread("Replication Driver",
-        new org.apache.accumulo.manager.replication.ReplicationDriver(this));
-    replicationWorkThread.start();
-
-    // Start the daemon to assign work to tservers to replicate to our peers
-    var wd = new org.apache.accumulo.manager.replication.WorkDriver(this);
-    replicationAssignerThread = Threads.createThread(wd.getName(), wd);
-    replicationAssignerThread.start();
-
-    // Advertise that port we used so peers don't have to be told what it is
-    context.getZooReaderWriter().putPersistentData(
-        getZooKeeperRoot() + Constants.ZMANAGER_REPLICATION_COORDINATOR_ADDR,
-        replAddress.address.toString().getBytes(UTF_8), NodeExistsPolicy.OVERWRITE);
-    return replAddress.server;
   }
 
   private long remaining(long deadline) {

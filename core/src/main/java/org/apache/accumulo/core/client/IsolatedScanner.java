@@ -18,8 +18,8 @@
  */
 package org.apache.accumulo.core.client;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -95,9 +95,9 @@ public class IsolatedScanner extends ScannerOptions implements Scanner {
 
           nextRowStart = null;
 
-          if (lastRow == null)
+          if (lastRow == null) {
             seekRange = range;
-          else {
+          } else {
             Text lastRowText = new Text();
             lastRowText.set(lastRow.getBackingArray(), lastRow.offset(), lastRow.length());
             Key startKey = new Key(lastRowText).followingKey(PartialKey.ROW);
@@ -227,8 +227,8 @@ public class IsolatedScanner extends ScannerOptions implements Scanner {
   public IsolatedScanner(Scanner scanner, RowBufferFactory bufferFactory) {
     this.scanner = scanner;
     this.range = scanner.getRange();
-    this.timeOut = scanner.getTimeout(MILLISECONDS);
-    this.batchTimeOut = scanner.getBatchTimeout(MILLISECONDS);
+    this.retryTimeout = scanner.getTimeout(MILLISECONDS);
+    this.batchTimeout = scanner.getBatchTimeout(MILLISECONDS);
     this.batchSize = scanner.getBatchSize();
     this.readaheadThreshold = scanner.getReadaheadThreshold();
     this.bufferFactory = bufferFactory;
@@ -236,8 +236,8 @@ public class IsolatedScanner extends ScannerOptions implements Scanner {
 
   @Override
   public Iterator<Entry<Key,Value>> iterator() {
-    return new RowBufferingIterator(scanner, this, range, timeOut, batchSize, readaheadThreshold,
-        bufferFactory);
+    return new RowBufferingIterator(scanner, this, range, retryTimeout, batchSize,
+        readaheadThreshold, bufferFactory);
   }
 
   @Override

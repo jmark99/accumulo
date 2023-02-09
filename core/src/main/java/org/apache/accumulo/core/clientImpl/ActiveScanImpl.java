@@ -57,7 +57,7 @@ public class ActiveScanImpl extends ActiveScan {
   private Authorizations authorizations;
 
   ActiveScanImpl(ClientContext context,
-      org.apache.accumulo.core.tabletserver.thrift.ActiveScan activeScan)
+      org.apache.accumulo.core.tabletscan.thrift.ActiveScan activeScan)
       throws TableNotFoundException {
     this.scanId = activeScan.scanId;
     this.client = activeScan.client;
@@ -72,8 +72,9 @@ public class ActiveScanImpl extends ActiveScan {
 
     this.columns = new ArrayList<>(activeScan.columns.size());
 
-    for (TColumn tcolumn : activeScan.columns)
+    for (TColumn tcolumn : activeScan.columns) {
       this.columns.add(new Column(tcolumn));
+    }
 
     this.ssiList = new ArrayList<>();
     for (IterInfo ii : activeScan.ssiList) {

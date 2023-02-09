@@ -18,9 +18,9 @@
  */
 package org.apache.accumulo.compactor;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -45,6 +45,7 @@ import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.IteratorSetting;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.clientImpl.thrift.SecurityErrorCode;
+import org.apache.accumulo.core.clientImpl.thrift.TInfo;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
@@ -83,9 +84,7 @@ import org.apache.accumulo.core.tabletserver.thrift.TCompactionKind;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionStats;
 import org.apache.accumulo.core.tabletserver.thrift.TExternalCompactionJob;
 import org.apache.accumulo.core.trace.TraceUtil;
-import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.core.util.Halt;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.ServerServices;
 import org.apache.accumulo.core.util.ServerServices.Service;
 import org.apache.accumulo.core.util.UtilWaitThread;
@@ -115,6 +114,7 @@ import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.Parameter;
 import com.google.common.base.Preconditions;
+import com.google.common.net.HostAndPort;
 
 import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -253,12 +253,9 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Set up nodes and locks in ZooKeeper for this Compactor
    *
-   * @param clientAddress
-   *          address of this Compactor
-   * @throws KeeperException
-   *           zookeeper error
-   * @throws InterruptedException
-   *           thread interrupted
+   * @param clientAddress address of this Compactor
+   * @throws KeeperException zookeeper error
+   * @throws InterruptedException thread interrupted
    */
   protected void announceExistence(HostAndPort clientAddress)
       throws KeeperException, InterruptedException {
@@ -324,8 +321,7 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
    * Start this Compactors thrift service to handle incoming client requests
    *
    * @return address of this compactor client service
-   * @throws UnknownHostException
-   *           host unknown
+   * @throws UnknownHostException host unknown
    */
   protected ServerAddress startCompactorClientService() throws UnknownHostException {
     var processor = ThriftProcessorTypes.getCompactorTProcessor(this, getContext());
@@ -344,12 +340,10 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Cancel the compaction with this id.
    *
-   * @param externalCompactionId
-   *          compaction id
-   * @throws UnknownCompactionIdException
-   *           if the externalCompactionId does not match the currently executing compaction
-   * @throws TException
-   *           thrift error
+   * @param externalCompactionId compaction id
+   * @throws UnknownCompactionIdException if the externalCompactionId does not match the currently
+   *         executing compaction
+   * @throws TException thrift error
    */
   private void cancel(String externalCompactionId) throws TException {
     if (JOB_HOLDER.cancel(externalCompactionId)) {
@@ -380,12 +374,9 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Send an update to the CompactionCoordinator for this job
    *
-   * @param job
-   *          compactionJob
-   * @param update
-   *          status update
-   * @throws RetriesExceededException
-   *           thrown when retries have been exceeded
+   * @param job compactionJob
+   * @param update status update
+   * @throws RetriesExceededException thrown when retries have been exceeded
    */
   protected void updateCompactionState(TExternalCompactionJob job, TCompactionStatusUpdate update)
       throws RetriesExceededException {
@@ -406,10 +397,8 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Notify the CompactionCoordinator the job failed
    *
-   * @param job
-   *          current compaction job
-   * @throws RetriesExceededException
-   *           thrown when retries have been exceeded
+   * @param job current compaction job
+   * @throws RetriesExceededException thrown when retries have been exceeded
    */
   protected void updateCompactionFailed(TExternalCompactionJob job)
       throws RetriesExceededException {
@@ -430,12 +419,9 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Update the CompactionCoordinator with the stats from the completed job
    *
-   * @param job
-   *          current compaction job
-   * @param stats
-   *          compaction stats
-   * @throws RetriesExceededException
-   *           thrown when retries have been exceeded
+   * @param job current compaction job
+   * @param stats compaction stats
+   * @throws RetriesExceededException thrown when retries have been exceeded
    */
   protected void updateCompactionCompleted(TExternalCompactionJob job, TCompactionStats stats)
       throws RetriesExceededException {
@@ -456,11 +442,9 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Get the next job to run
    *
-   * @param uuid
-   *          uuid supplier
+   * @param uuid uuid supplier
    * @return CompactionJob
-   * @throws RetriesExceededException
-   *           thrown when retries have been exceeded
+   * @throws RetriesExceededException thrown when retries have been exceeded
    */
   protected TExternalCompactionJob getNextJob(Supplier<UUID> uuid) throws RetriesExceededException {
     RetryableThriftCall<TExternalCompactionJob> nextJobThriftCall =
@@ -488,8 +472,7 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
    * Get the client to the CompactionCoordinator
    *
    * @return compaction coordinator client
-   * @throws TTransportException
-   *           when unable to get client
+   * @throws TTransportException when unable to get client
    */
   protected CompactionCoordinatorService.Client getCoordinatorClient() throws TTransportException {
     var coordinatorHost = ExternalCompactionUtil.findCompactionCoordinator(getContext());
@@ -503,18 +486,12 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Create compaction runnable
    *
-   * @param job
-   *          compaction job
-   * @param totalInputEntries
-   *          object to capture total entries
-   * @param totalInputBytes
-   *          object to capture input file size
-   * @param started
-   *          started latch
-   * @param stopped
-   *          stopped latch
-   * @param err
-   *          reference to error
+   * @param job compaction job
+   * @param totalInputEntries object to capture total entries
+   * @param totalInputBytes object to capture input file size
+   * @param started started latch
+   * @param stopped stopped latch
+   * @param err reference to error
    * @return Runnable compaction job
    */
   protected Runnable createCompactionJob(final TExternalCompactionJob job,
@@ -593,8 +570,7 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Returns the number of seconds to wait in between progress checks based on input file sizes
    *
-   * @param numBytes
-   *          number of bytes in input file
+   * @param numBytes number of bytes in input file
    * @return number of seconds to wait between progress checks
    */
   static long calculateProgressCheckTime(long numBytes) {
@@ -861,10 +837,8 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
   /**
    * Called by a CompactionCoordinator to get the running compaction
    *
-   * @param tinfo
-   *          trace info
-   * @param credentials
-   *          caller credentials
+   * @param tinfo trace info
+   * @param credentials caller credentials
    * @return current compaction job or empty compaction job is none running
    */
   @Override

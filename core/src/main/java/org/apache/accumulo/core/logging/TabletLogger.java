@@ -34,12 +34,12 @@ import org.apache.accumulo.core.metadata.TabletFile;
 import org.apache.accumulo.core.spi.compaction.CompactionJob;
 import org.apache.accumulo.core.spi.compaction.CompactionKind;
 import org.apache.accumulo.core.tabletserver.log.LogEntry;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Collections2;
+import com.google.common.net.HostAndPort;
 
 /**
  * This class contains source for logs messages about a tablets internal state, like its location,
@@ -146,10 +146,11 @@ public class TabletLogger {
   }
 
   public static void flushed(KeyExtent extent, Optional<StoredTabletFile> newDatafile) {
-    if (newDatafile.isPresent())
+    if (newDatafile.isPresent()) {
       fileLog.debug("Flushed {} created {} from [memory]", extent, newDatafile.get());
-    else
+    } else {
       fileLog.debug("Flushed {} from [memory] but no file was written.", extent);
+    }
   }
 
   public static void bulkImported(KeyExtent extent, TabletFile file) {

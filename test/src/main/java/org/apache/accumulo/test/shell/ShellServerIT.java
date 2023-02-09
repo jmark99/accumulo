@@ -18,8 +18,8 @@
  */
 package org.apache.accumulo.test.shell;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 import static org.apache.accumulo.harness.AccumuloITBase.MINI_CLUSTER_ONLY;
 import static org.apache.accumulo.harness.AccumuloITBase.SUNNY_DAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -77,7 +77,6 @@ import org.apache.accumulo.core.util.format.FormatterConfig;
 import org.apache.accumulo.harness.MiniClusterConfigurationCallback;
 import org.apache.accumulo.harness.SharedMiniClusterBase;
 import org.apache.accumulo.miniclusterImpl.MiniAccumuloConfigImpl;
-import org.apache.accumulo.test.compaction.TestCompactionStrategy;
 import org.apache.accumulo.test.functional.SlowIterator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -710,14 +709,17 @@ public class ShellServerIT extends SharedMiniClusterBase {
 
     try (AccumuloClient accumuloClient = Accumulo.newClient().from(getClientProps()).build()) {
       accumuloClient.tableOperations().getConfiguration(table).forEach((key, value) -> {
-        if (key.equals("table.custom.description"))
+        if (key.equals("table.custom.description")) {
           assertEquals("description", value, "Initial property was not set correctly");
+        }
 
-        if (key.equals("table.custom.testProp"))
+        if (key.equals("table.custom.testProp")) {
           assertEquals("testProp", value, "Initial property was not set correctly");
+        }
 
-        if (key.equals(Property.TABLE_SPLIT_THRESHOLD.getKey()))
+        if (key.equals(Property.TABLE_SPLIT_THRESHOLD.getKey())) {
           assertEquals("10K", value, "Initial property was not set correctly");
+        }
       });
     }
     ts.exec("deletetable -f " + table);
@@ -760,14 +762,6 @@ public class ShellServerIT extends SharedMiniClusterBase {
     ts.exec("merge --all -t " + table);
     ts.exec("compact -w");
     assertEquals(1, countFiles(tableId));
-
-    // test compaction strategy
-    ts.exec("insert z 1 2 v900");
-    ts.exec("compact -w -s " + TestCompactionStrategy.class.getName()
-        + " -sc inputPrefix=F,dropPrefix=A");
-    assertEquals(1, countFiles(tableId));
-    ts.exec("scan", true, "v900", true);
-    ts.exec("scan", true, "v901", false);
 
     ts.exec("deletetable -f " + table);
   }
@@ -883,18 +877,6 @@ public class ShellServerIT extends SharedMiniClusterBase {
     ts.exec("compact -t " + clone2 + " -w --sf-no-sample");
 
     assertEquals(3, countFiles(clone2Id));
-  }
-
-  @Test
-  public void testCompactionSelectionAndStrategy() throws Exception {
-
-    final String table = getUniqueNames(1)[0];
-
-    ts.exec("createtable " + table);
-
-    // expect this to fail
-    ts.exec("compact -t " + table + " -w --sf-ename F.* -s "
-        + TestCompactionStrategy.class.getName() + " -sc inputPrefix=F,dropPrefix=A", false);
   }
 
   @Test
@@ -1393,8 +1375,9 @@ public class ShellServerIT extends SharedMiniClusterBase {
     for (int i = 0; i < 10; i++) {
       ts.exec("ping", true, "OK", true);
       // wait for both tservers to start up
-      if (ts.output.get().split("\n").length == 3)
+      if (ts.output.get().split("\n").length == 3) {
         break;
+      }
       sleepUninterruptibly(1, TimeUnit.SECONDS);
 
     }
@@ -1504,14 +1487,6 @@ public class ShellServerIT extends SharedMiniClusterBase {
       }
     }
     ts.exec("deletetable -f " + table, true);
-  }
-
-  @Test
-  public void testPerTableClasspathLegacyJar() throws Exception {
-    final String table = getUniqueNames(1)[0];
-    File fooConstraintJar =
-        initJar("/org/apache/accumulo/test/FooConstraint.jar", "FooContraint", rootPath);
-    verifyPerTableClasspath(table, fooConstraintJar);
   }
 
   @Test
@@ -1823,8 +1798,7 @@ public class ShellServerIT extends SharedMiniClusterBase {
    * format that uses the current working table. Currently this test does not validate the actual
    * import - only the command syntax.
    *
-   * @throws Exception
-   *           any exception is a test failure.
+   * @throws Exception any exception is a test failure.
    */
   @Test
   public void importDirectoryCmdFmt() throws Exception {

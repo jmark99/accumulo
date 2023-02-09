@@ -19,9 +19,9 @@
 package org.apache.accumulo.core.rpc.clients;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -69,9 +69,10 @@ public interface TServerClient<C extends TServiceClient> {
       byte[] data = zc.getLockData(zLocPath);
       if (data != null) {
         String strData = new String(data, UTF_8);
-        if (!strData.equals("manager"))
+        if (!strData.equals("manager")) {
           servers.add(new ThriftTransportKey(
               new ServerServices(strData).getAddress(Service.TSERV_CLIENT), rpcTimeout, context));
+        }
       }
     }
 

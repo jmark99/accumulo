@@ -26,8 +26,9 @@ import java.util.concurrent.TimeUnit;
 import org.apache.accumulo.core.logging.TabletLogger;
 import org.apache.accumulo.core.metadata.TServerInstance;
 import org.apache.accumulo.core.metadata.TabletLocationState;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.net.HostAndPort;
 
 /**
  * Wraps a tablet state store and logs important events.
@@ -68,8 +69,9 @@ class LoggingTabletStateStore implements TabletStateStore {
       Map<TServerInstance,List<Path>> logsForDeadServers) throws DistributedStoreException {
     wrapped.unassign(tablets, logsForDeadServers);
 
-    if (logsForDeadServers == null)
+    if (logsForDeadServers == null) {
       logsForDeadServers = Map.of();
+    }
 
     for (TabletLocationState tls : tablets) {
       TabletLogger.unassigned(tls.extent, logsForDeadServers.size());
@@ -82,8 +84,9 @@ class LoggingTabletStateStore implements TabletStateStore {
       throws DistributedStoreException {
     wrapped.suspend(tablets, logsForDeadServers, suspensionTimestamp);
 
-    if (logsForDeadServers == null)
+    if (logsForDeadServers == null) {
       logsForDeadServers = Map.of();
+    }
 
     for (TabletLocationState tls : tablets) {
       var location = tls.getLocation();

@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>27</version>
+    <version>28</version>
   </parent>
   <groupId>org.apache.accumulo</groupId>
   <artifactId>accumulo-project</artifactId>
@@ -48,7 +48,7 @@
   </organization>
   <licenses>
     <license>
-      <name>Apache License, Version 2.0</name>
+      <name>Apache-2.0</name>
       <url>https://www.apache.org/licenses/LICENSE-2.0</url>
     </license>
   </licenses>
@@ -132,7 +132,6 @@
     <failsafe.groups />
     <failsafe.reuseForks>false</failsafe.reuseForks>
     <hadoop.version>3.3.4</hadoop.version>
-    <htrace.hadoop.version>4.1.0-incubating</htrace.hadoop.version>
     <it.failIfNoSpecifiedTests>false</it.failIfNoSpecifiedTests>
     <!-- prevent introduction of new compiler warnings -->
     <maven.compiler.failOnWarning>true</maven.compiler.failOnWarning>
@@ -293,11 +292,6 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>31.1-jre</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>3.21.7</version>
       </dependency>
       <dependency>
         <groupId>com.lmax</groupId>
@@ -531,11 +525,6 @@
         <version>${hadoop.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.htrace</groupId>
-        <artifactId>htrace-core4</artifactId>
-        <version>${htrace.hadoop.version}</version>
-      </dependency>
-      <dependency>
         <groupId>org.apache.thrift</groupId>
         <artifactId>libthrift</artifactId>
         <version>${thrift.version}</version>
@@ -726,7 +715,6 @@
               <css>SLASHSTAR_STYLE</css>
               <h>SLASHSTAR_STYLE</h>
               <java>SLASHSTAR_STYLE</java>
-              <proto>SLASHSTAR_STYLE</proto>
               <thrift>SLASHSTAR_STYLE</thrift>
             </mapping>
           </configuration>
@@ -927,7 +915,6 @@
             <configFile>${eclipseFormatterStyle}</configFile>
             <excludes>
               <exclude>**/thrift/*.java</exclude>
-              <exclude>**/proto/*.java</exclude>
             </excludes>
             <lineEnding>LF</lineEnding>
             <skipCssFormatting>true</skipCssFormatting>
@@ -1181,12 +1168,14 @@
                   <property name="allowedAnnotations" value="Override,Test,BeforeClass,AfterClass,Before,After,BeforeAll,AfterAll,BeforeEach,AfterEach" />
                 </module>
                 <module name="MissingOverrideCheck" />
+                <!--Require braces for all control statements -->
+                <module name="NeedBraces" />
               </module>
             </module>
           </checkstyleRules>
           <violationSeverity>warning</violationSeverity>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <excludes>**/thrift/*.java,**/proto/*.java,**/HelpMojo.java</excludes>
+          <excludes>**/thrift/*.java,**/HelpMojo.java</excludes>
         </configuration>
         <dependencies>
           <dependency>
@@ -1657,7 +1646,7 @@
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>
                   -Xplugin:ErrorProne \
-                  -XepExcludedPaths:.*/(proto|thrift|generated-sources|src/test)/.* \
+                  -XepExcludedPaths:.*/(thrift|generated-sources|src/test)/.* \
                   -XepDisableWarningsInGeneratedCode \
                   -XepDisableAllWarnings \
                   <!-- ERROR patterns to specifically ignore -->
@@ -1668,6 +1657,8 @@
                   <!-- treat following warning as an error -->
                   -Xep:FutureReturnValueIgnored:ERROR \
                   -Xep:MissingOverride \
+                  <!--WARN if braces are missing for control statements -->
+                  -Xep:MissingBraces:WARN \
                   <!-- Items containing 'OFF' are currently Errors flagged by ErrorProne. The 'OFF'
                   can be removed and the project recompiled to discover location of errors for
                   further analysis. @SuppressWarnings can be used to ignore errors if desired. -->

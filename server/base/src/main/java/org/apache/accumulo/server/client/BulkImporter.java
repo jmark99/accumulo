@@ -18,8 +18,8 @@
  */
 package org.apache.accumulo.server.client;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -57,9 +57,8 @@ import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.rpc.ThriftUtil;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.spi.crypto.CryptoService;
-import org.apache.accumulo.core.tabletserver.thrift.TabletClientService;
+import org.apache.accumulo.core.tabletingest.thrift.TabletIngestClientService;
 import org.apache.accumulo.core.trace.TraceUtil;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.StopWatch;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.server.ServerContext;
@@ -71,6 +70,8 @@ import org.apache.hadoop.io.Text;
 import org.apache.thrift.TServiceClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.net.HostAndPort;
 
 public class BulkImporter {
 
@@ -152,8 +153,9 @@ public class BulkImporter {
           if (tabletsToAssignMapFileTo.isEmpty()) {
             List<KeyExtent> empty = Collections.emptyList();
             completeFailures.put(mapFile, empty);
-          } else
+          } else {
             assignments.put(mapFile, tabletsToAssignMapFileTo);
+          }
 
         };
         threadPool.execute(getAssignments);
@@ -175,8 +177,9 @@ public class BulkImporter {
 
       Map<Path,Integer> failureCount = new TreeMap<>();
 
-      for (Entry<Path,List<KeyExtent>> entry : assignmentFailures.entrySet())
+      for (Entry<Path,List<KeyExtent>> entry : assignmentFailures.entrySet()) {
         failureCount.put(entry.getKey(), 1);
+      }
 
       long sleepTime = 2_000;
       while (!assignmentFailures.isEmpty()) {
@@ -217,8 +220,9 @@ public class BulkImporter {
             timer.stop(Timers.QUERY_METADATA);
           }
 
-          if (!tabletsToAssignMapFileTo.isEmpty())
+          if (!tabletsToAssignMapFileTo.isEmpty()) {
             assignments.put(entry.getKey(), tabletsToAssignMapFileTo);
+          }
         }
 
         assignmentStats.attemptingAssignments(assignments);
@@ -231,8 +235,9 @@ public class BulkImporter {
           assignmentFailures.get(entry.getKey()).addAll(entry.getValue());
 
           Integer fc = failureCount.get(entry.getKey());
-          if (fc == null)
+          if (fc == null) {
             fc = 0;
+          }
 
           failureCount.put(entry.getKey(), fc + 1);
         }
@@ -267,8 +272,9 @@ public class BulkImporter {
   private void printReport(Set<Path> paths) {
     long totalTime = 0;
     for (Timers t : Timers.values()) {
-      if (t == Timers.TOTAL)
+      if (t == Timers.TOTAL) {
         continue;
+      }
 
       totalTime += timer.get(t);
     }
@@ -304,16 +310,18 @@ public class BulkImporter {
 
     Set<Entry<Path,List<KeyExtent>>> es = completeFailures.entrySet();
 
-    if (completeFailures.isEmpty())
+    if (completeFailures.isEmpty()) {
       return Collections.emptySet();
+    }
 
     log.debug("The following map files failed ");
 
     for (Entry<Path,List<KeyExtent>> entry : es) {
       List<KeyExtent> extents = entry.getValue();
 
-      for (KeyExtent keyExtent : extents)
+      for (KeyExtent keyExtent : extents) {
         log.debug("\t{} -> {}", entry.getKey(), keyExtent);
+      }
     }
 
     return Collections.emptySet();
@@ -331,8 +339,9 @@ public class BulkImporter {
 
   private static List<KeyExtent> extentsOf(List<TabletLocation> locations) {
     List<KeyExtent> result = new ArrayList<>(locations.size());
-    for (TabletLocation tl : locations)
+    for (TabletLocation tl : locations) {
       result.add(tl.tablet_extent);
+    }
     return result;
   }
 
@@ -388,14 +397,16 @@ public class BulkImporter {
           estimatedSizes = new TreeMap<>();
           long estSize =
               (long) (mapFileSizes.get(entry.getKey()) / (double) entry.getValue().size());
-          for (TabletLocation tl : entry.getValue())
+          for (TabletLocation tl : entry.getValue()) {
             estimatedSizes.put(tl.tablet_extent, estSize);
+          }
         }
 
         List<AssignmentInfo> assignmentInfoList = new ArrayList<>(estimatedSizes.size());
 
-        for (Entry<KeyExtent,Long> entry2 : estimatedSizes.entrySet())
+        for (Entry<KeyExtent,Long> entry2 : estimatedSizes.entrySet()) {
           assignmentInfoList.add(new AssignmentInfo(entry2.getKey(), entry2.getValue()));
+        }
 
         ais.put(entry.getKey(), assignmentInfoList);
       };
@@ -476,9 +487,11 @@ public class BulkImporter {
     @Override
     public void run() {
       HashSet<Path> uniqMapFiles = new HashSet<>();
-      for (List<PathSize> mapFiles : assignmentsPerTablet.values())
-        for (PathSize ps : mapFiles)
+      for (List<PathSize> mapFiles : assignmentsPerTablet.values()) {
+        for (PathSize ps : mapFiles) {
           uniqMapFiles.add(ps.path);
+        }
+      }
 
       log.debug("Assigning {} map files to {} tablets at {}", uniqMapFiles.size(),
           assignmentsPerTablet.size(), location);
@@ -569,8 +582,8 @@ public class BulkImporter {
       throws AccumuloException, AccumuloSecurityException {
     try {
       long timeInMillis = context.getConfiguration().getTimeInMillis(Property.TSERV_BULK_TIMEOUT);
-      TabletClientService.Iface client =
-          ThriftUtil.getClient(ThriftClientTypes.TABLET_SERVER, location, context, timeInMillis);
+      TabletIngestClientService.Iface client =
+          ThriftUtil.getClient(ThriftClientTypes.TABLET_INGEST, location, context, timeInMillis);
       try {
         HashMap<KeyExtent,Map<String,org.apache.accumulo.core.dataImpl.thrift.MapFileInfo>> files =
             new HashMap<>();
@@ -642,8 +655,9 @@ public class BulkImporter {
         FileOperations.getInstance().newReaderBuilder().forFile(filename, fs, fs.getConf(), cs)
             .withTableConfiguration(context.getConfiguration()).seekToBeginning().build()) {
       Text row = startRow;
-      if (row == null)
+      if (row == null) {
         row = new Text();
+      }
       while (true) {
         // log.debug(filename + " Seeking to row " + row);
         reader.seek(new Range(row, null), columnFamilies, false);
@@ -659,8 +673,9 @@ public class BulkImporter {
         if (row != null && (endRow == null || row.compareTo(endRow) < 0)) {
           row = new Text(row);
           row.append(byte0, 0, byte0.length);
-        } else
+        } else {
           break;
+        }
       }
     }
     // log.debug(filename + " to be sent to " + result);
@@ -727,27 +742,32 @@ public class BulkImporter {
 
       for (Entry<KeyExtent,Integer> entry : counts.entrySet()) {
         totalAssignments += entry.getValue();
-        if (entry.getValue() > 0)
+        if (entry.getValue() > 0) {
           tabletsImportedTo++;
+        }
 
-        if (entry.getValue() < min)
+        if (entry.getValue() < min) {
           min = entry.getValue();
+        }
 
-        if (entry.getValue() > max)
+        if (entry.getValue() > max) {
           max = entry.getValue();
+        }
       }
 
       double stddev = 0;
 
-      for (Entry<KeyExtent,Integer> entry : counts.entrySet())
+      for (Entry<KeyExtent,Integer> entry : counts.entrySet()) {
         stddev += Math.pow(entry.getValue() - totalAssignments / (double) counts.size(), 2);
+      }
 
       stddev = stddev / counts.size();
       stddev = Math.sqrt(stddev);
 
       Set<KeyExtent> failedTablets = new HashSet<>();
-      for (List<KeyExtent> ft : completeFailures.values())
+      for (List<KeyExtent> ft : completeFailures.values()) {
         failedTablets.addAll(ft);
+      }
 
       sb.append("BULK IMPORT ASSIGNMENT STATISTICS\n");
       sb.append(String.format("# of map files            : %,10d%n", numUniqueMapFiles));

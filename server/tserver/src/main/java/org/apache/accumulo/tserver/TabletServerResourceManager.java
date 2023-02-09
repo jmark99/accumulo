@@ -18,9 +18,9 @@
  */
 package org.apache.accumulo.tserver;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toUnmodifiableMap;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -127,12 +127,9 @@ public class TabletServerResourceManager {
    * This method creates a task that changes the number of core and maximum threads on the thread
    * pool executor
    *
-   * @param maxThreads
-   *          max threads
-   * @param name
-   *          name of thread pool
-   * @param tp
-   *          executor
+   * @param maxThreads max threads
+   * @param name name of thread pool
+   * @param tp executor
    */
   private void modifyThreadPoolSizesAtRuntime(IntSupplier maxThreads, String name,
       final ThreadPoolExecutor tp) {

@@ -32,7 +32,7 @@ import java.util.Map.Entry;
 import org.apache.accumulo.core.client.sample.SamplerConfiguration;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
-import org.apache.accumulo.core.tabletserver.thrift.TSamplerConfiguration;
+import org.apache.accumulo.core.tabletscan.thrift.TSamplerConfiguration;
 import org.apache.accumulo.core.util.Pair;
 import org.apache.hadoop.io.Writable;
 
@@ -173,15 +173,17 @@ public class SamplerConfigurationImpl implements Writable {
   }
 
   public static TSamplerConfiguration toThrift(SamplerConfiguration samplerConfig) {
-    if (samplerConfig == null)
+    if (samplerConfig == null) {
       return null;
+    }
     return new TSamplerConfiguration(samplerConfig.getSamplerClassName(),
         samplerConfig.getOptions());
   }
 
   public static SamplerConfiguration fromThrift(TSamplerConfiguration tsc) {
-    if (tsc == null)
+    if (tsc == null) {
       return null;
+    }
     return new SamplerConfiguration(tsc.getClassName()).setOptions(tsc.getOptions());
   }
 

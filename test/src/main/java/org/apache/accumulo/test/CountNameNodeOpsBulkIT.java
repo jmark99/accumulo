@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.net.URL;
@@ -169,8 +169,9 @@ public class CountNameNodeOpsBulkIT extends ConfigurableMacBase {
       Map<?,?> map = getStats();
       map.forEach((k, v) -> {
         try {
-          if (v != null && Double.parseDouble(v.toString()) > 0.0)
+          if (v != null && Double.parseDouble(v.toString()) > 0.0) {
             log.debug("{}:{}", k, v);
+          }
         } catch (NumberFormatException e) {
           // only looking for numbers
         }

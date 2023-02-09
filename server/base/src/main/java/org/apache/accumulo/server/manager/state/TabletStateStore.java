@@ -60,10 +60,8 @@ public interface TabletStateStore extends Iterable<TabletLocationState> {
   /**
    * Mark the tablets as having no known or future location.
    *
-   * @param tablets
-   *          the tablets' current information
-   * @param logsForDeadServers
-   *          a cache of logs in use by servers when they died
+   * @param tablets the tablets' current information
+   * @param logsForDeadServers a cache of logs in use by servers when they died
    */
   void unassign(Collection<TabletLocationState> tablets,
       Map<TServerInstance,List<Path>> logsForDeadServers) throws DistributedStoreException;
@@ -114,7 +112,7 @@ public interface TabletStateStore extends Iterable<TabletLocationState> {
     TabletStateStore tss;
     switch (level) {
       case ROOT:
-        tss = new ZooTabletStateStore(context.getAmple());
+        tss = new ZooTabletStateStore(context);
         break;
       case METADATA:
         tss = new RootTabletStateStore(context, state);

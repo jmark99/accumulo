@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.coordinator;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.UnknownHostException;
@@ -39,6 +39,7 @@ import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.clientImpl.thrift.SecurityErrorCode;
+import org.apache.accumulo.core.clientImpl.thrift.TInfo;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
 import org.apache.accumulo.core.clientImpl.thrift.ThriftSecurityException;
@@ -66,10 +67,8 @@ import org.apache.accumulo.core.securityImpl.thrift.TCredentials;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionQueueSummary;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionStats;
 import org.apache.accumulo.core.tabletserver.thrift.TExternalCompactionJob;
-import org.apache.accumulo.core.tabletserver.thrift.TabletClientService;
+import org.apache.accumulo.core.tabletserver.thrift.TabletServerClientService;
 import org.apache.accumulo.core.trace.TraceUtil;
-import org.apache.accumulo.core.trace.thrift.TInfo;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.core.util.compaction.ExternalCompactionUtil;
 import org.apache.accumulo.core.util.compaction.RunningCompaction;
@@ -94,6 +93,7 @@ import org.slf4j.LoggerFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Sets;
+import com.google.common.net.HostAndPort;
 
 public class CompactionCoordinator extends AbstractServer
     implements CompactionCoordinatorService.Iface, LiveTServerSet.Listener {
@@ -195,12 +195,9 @@ public class CompactionCoordinator extends AbstractServer
   /**
    * Set up nodes and locks in ZooKeeper for this CompactionCoordinator
    *
-   * @param clientAddress
-   *          address of this Compactor
-   * @throws KeeperException
-   *           zookeeper error
-   * @throws InterruptedException
-   *           thread interrupted
+   * @param clientAddress address of this Compactor
+   * @throws KeeperException zookeeper error
+   * @throws InterruptedException thread interrupted
    */
   protected void getCoordinatorLock(HostAndPort clientAddress)
       throws KeeperException, InterruptedException {
@@ -234,8 +231,7 @@ public class CompactionCoordinator extends AbstractServer
    * Start this CompactionCoordinator thrift service to handle incoming client requests
    *
    * @return address of this CompactionCoordinator client service
-   * @throws UnknownHostException
-   *           host unknown
+   * @throws UnknownHostException host unknown
    */
   protected ServerAddress startCoordinatorClientService() throws UnknownHostException {
     var processor = ThriftProcessorTypes.getCoordinatorTProcessor(this, getContext());
@@ -360,7 +356,7 @@ public class CompactionCoordinator extends AbstractServer
 
   private void updateSummaries(TServerInstance tsi, Set<String> queuesSeen) {
     try {
-      TabletClientService.Client client = null;
+      TabletServerClientService.Client client = null;
       try {
         LOG.debug("Contacting tablet server {} to get external compaction summaries",
             tsi.getHostPort());
@@ -398,12 +394,9 @@ public class CompactionCoordinator extends AbstractServer
    * Callback for the LiveTServerSet object to update current set of tablet servers, including ones
    * that were deleted and added
    *
-   * @param current
-   *          current set of live tservers
-   * @param deleted
-   *          set of tservers that were removed from current since last update
-   * @param added
-   *          set of tservers that were added to current since last update
+   * @param current current set of live tservers
+   * @param deleted set of tservers that were removed from current since last update
+   * @param added set of tservers that were added to current since last update
    */
   @Override
   public void update(LiveTServerSet current, Set<TServerInstance> deleted,
@@ -418,12 +411,9 @@ public class CompactionCoordinator extends AbstractServer
   /**
    * Return the next compaction job from the queue to a Compactor
    *
-   * @param queueName
-   *          queue
-   * @param compactorAddress
-   *          compactor address
-   * @throws ThriftSecurityException
-   *           when permission error
+   * @param queueName queue
+   * @param compactorAddress compactor address
+   * @throws ThriftSecurityException when permission error
    * @return compaction job
    */
   @Override
@@ -449,7 +439,7 @@ public class CompactionCoordinator extends AbstractServer
 
       LOG.trace("Getting compaction for queue {} from tserver {}", queue, tserver.getHostAndPort());
       // Get a compaction from the tserver
-      TabletClientService.Client client = null;
+      TabletServerClientService.Client client = null;
       try {
         client = getTabletServerConnection(tserver);
         TExternalCompactionJob job =
@@ -494,13 +484,11 @@ public class CompactionCoordinator extends AbstractServer
   /**
    * Return the Thrift client for the TServer
    *
-   * @param tserver
-   *          tserver instance
+   * @param tserver tserver instance
    * @return thrift client
-   * @throws TTransportException
-   *           thrift error
+   * @throws TTransportException thrift error
    */
-  protected TabletClientService.Client getTabletServerConnection(TServerInstance tserver)
+  protected TabletServerClientService.Client getTabletServerConnection(TServerInstance tserver)
       throws TTransportException {
     TServerConnection connection = tserverSet.getConnection(tserver);
     ServerContext serverContext = getContext();
@@ -512,18 +500,12 @@ public class CompactionCoordinator extends AbstractServer
   /**
    * Compactor calls compactionCompleted passing in the CompactionStats
    *
-   * @param tinfo
-   *          trace info
-   * @param credentials
-   *          tcredentials object
-   * @param externalCompactionId
-   *          compaction id
-   * @param textent
-   *          tablet extent
-   * @param stats
-   *          compaction stats
-   * @throws ThriftSecurityException
-   *           when permission error
+   * @param tinfo trace info
+   * @param credentials tcredentials object
+   * @param externalCompactionId compaction id
+   * @param textent tablet extent
+   * @param stats compaction stats
+   * @throws ThriftSecurityException when permission error
    */
   @Override
   public void compactionCompleted(TInfo tinfo, TCredentials credentials,
@@ -567,18 +549,12 @@ public class CompactionCoordinator extends AbstractServer
   /**
    * Compactor calls to update the status of the assigned compaction
    *
-   * @param tinfo
-   *          trace info
-   * @param credentials
-   *          tcredentials object
-   * @param externalCompactionId
-   *          compaction id
-   * @param update
-   *          compaction status update
-   * @param timestamp
-   *          timestamp of the message
-   * @throws ThriftSecurityException
-   *           when permission error
+   * @param tinfo trace info
+   * @param credentials tcredentials object
+   * @param externalCompactionId compaction id
+   * @param update compaction status update
+   * @param timestamp timestamp of the message
+   * @throws ThriftSecurityException when permission error
    */
   @Override
   public void updateCompactionStatus(TInfo tinfo, TCredentials credentials,
@@ -637,13 +613,10 @@ public class CompactionCoordinator extends AbstractServer
   /**
    * Return information about running compactions
    *
-   * @param tinfo
-   *          trace info
-   * @param credentials
-   *          tcredentials object
+   * @param tinfo trace info
+   * @param credentials tcredentials object
    * @return map of ECID to TExternalCompaction objects
-   * @throws ThriftSecurityException
-   *           permission error
+   * @throws ThriftSecurityException permission error
    */
   @Override
   public TExternalCompactionList getRunningCompactions(TInfo tinfo, TCredentials credentials)
@@ -669,13 +642,10 @@ public class CompactionCoordinator extends AbstractServer
   /**
    * Return information about recently completed compactions
    *
-   * @param tinfo
-   *          trace info
-   * @param credentials
-   *          tcredentials object
+   * @param tinfo trace info
+   * @param credentials tcredentials object
    * @return map of ECID to TExternalCompaction objects
-   * @throws ThriftSecurityException
-   *           permission error
+   * @throws ThriftSecurityException permission error
    */
   @Override
   public TExternalCompactionList getCompletedCompactions(TInfo tinfo, TCredentials credentials)

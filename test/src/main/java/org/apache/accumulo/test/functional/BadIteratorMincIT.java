@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test.functional;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Duration;
@@ -82,8 +82,9 @@ public class BadIteratorMincIT extends AccumuloClusterHarness {
 
         count = Iterators.size(scanner.iterator());
 
-        if (count != 1)
+        if (count != 1) {
           throw new Exception("Did not see expected # entries " + count);
+        }
 
         // now try putting bad iterator back and deleting the table
         c.tableOperations().attachIterator(tableName, is, EnumSet.of(IteratorScope.minc));

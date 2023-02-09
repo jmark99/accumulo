@@ -27,7 +27,6 @@ import java.util.Optional;
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.admin.CompactionConfig;
 import org.apache.accumulo.core.clientImpl.AcceptableThriftTableOperationException;
-import org.apache.accumulo.core.clientImpl.CompactionStrategyConfigUtil;
 import org.apache.accumulo.core.clientImpl.UserCompactionUtils;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
@@ -66,21 +65,21 @@ public class CompactRange extends ManagerRepo {
     this.namespaceId = namespaceId;
 
     if (!compactionConfig.getIterators().isEmpty()
-        || !CompactionStrategyConfigUtil.isDefault(compactionConfig)
         || !compactionConfig.getExecutionHints().isEmpty()
         || !isDefault(compactionConfig.getConfigurer())
         || !isDefault(compactionConfig.getSelector())) {
       this.config = UserCompactionUtils.encode(compactionConfig);
     } else {
       log.debug(
-          "Using default compaction strategy. No user iterators or compaction strategy provided.");
+          "Using default compaction config. No user iterators or compaction config provided.");
     }
 
     if (compactionConfig.getStartRow() != null && compactionConfig.getEndRow() != null
-        && compactionConfig.getStartRow().compareTo(compactionConfig.getEndRow()) >= 0)
+        && compactionConfig.getStartRow().compareTo(compactionConfig.getEndRow()) >= 0) {
       throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
           TableOperation.COMPACT, TableOperationExceptionType.BAD_RANGE,
           "start row must be less than end row");
+    }
 
     this.startRow =
         Optional.ofNullable(compactionConfig.getStartRow()).map(TextUtil::getBytes).orElse(null);
@@ -110,8 +109,9 @@ public class CompactRange extends ManagerRepo {
         String txidString = FastFormat.toHexString(tid);
 
         for (int i = 1; i < tokens.length; i++) {
-          if (tokens[i].startsWith(txidString))
+          if (tokens[i].startsWith(txidString)) {
             continue; // skip self
+          }
 
           log.debug("txidString : {}", txidString);
           log.debug("tokens[{}] : {}", i, tokens[i]);
@@ -160,8 +160,9 @@ public class CompactRange extends ManagerRepo {
 
         StringBuilder encodedIterators = new StringBuilder();
         for (int i = 1; i < tokens.length; i++) {
-          if (tokens[i].startsWith(txidString))
+          if (tokens[i].startsWith(txidString)) {
             continue;
+          }
           encodedIterators.append(",");
           encodedIterators.append(tokens[i]);
         }

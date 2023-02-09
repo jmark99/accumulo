@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -208,6 +208,17 @@ public class TableOperationsIT extends AccumuloClusterHarness {
   }
 
   @Test
+  public void createTableWithBadProperties()
+      throws AccumuloException, AccumuloSecurityException, TableExistsException {
+    TableOperations tableOps = accumuloClient.tableOperations();
+    String t0 = getUniqueNames(1)[0];
+    tableOps.create(t0);
+    assertTrue(tableOps.exists(t0));
+    assertThrows(AccumuloException.class,
+        () -> tableOps.setProperty(t0, Property.TABLE_BLOOM_ENABLED.getKey(), "foo"));
+  }
+
+  @Test
   public void createMergeClonedTable() throws Exception {
     String[] names = getUniqueNames(2);
     String originalTable = names[0];
@@ -290,8 +301,9 @@ public class TableOperationsIT extends AccumuloClusterHarness {
 
     try (Scanner scanner = accumuloClient.createScanner(tableName, Authorizations.EMPTY)) {
       Map<Key,Value> actual = new TreeMap<>();
-      for (Map.Entry<Key,Value> entry : scanner)
+      for (Map.Entry<Key,Value> entry : scanner) {
         actual.put(entry.getKey(), entry.getValue());
+      }
       assertTrue(actual.isEmpty(), "Should be empty. Actual is " + actual);
       accumuloClient.tableOperations().delete(tableName);
     }
@@ -344,11 +356,6 @@ public class TableOperationsIT extends AccumuloClusterHarness {
 
     // check system tables
     timeType = accumuloClient.tableOperations().getTimeType(MetadataTable.NAME);
-    assertEquals(TimeType.LOGICAL, timeType);
-
-    @SuppressWarnings("deprecation")
-    var REPL_TABLE_NAME = org.apache.accumulo.core.replication.ReplicationTable.NAME;
-    timeType = accumuloClient.tableOperations().getTimeType(REPL_TABLE_NAME);
     assertEquals(TimeType.LOGICAL, timeType);
 
     timeType = accumuloClient.tableOperations().getTimeType(RootTable.NAME);

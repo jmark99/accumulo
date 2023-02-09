@@ -18,11 +18,11 @@
  */
 package org.apache.accumulo.miniclusterImpl;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.toList;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -141,20 +141,17 @@ public class MiniAccumuloClusterImpl implements AccumuloCluster {
 
   /**
    *
-   * @param dir
-   *          An empty or nonexistent temp directory that Accumulo and Zookeeper can store data in.
-   *          Creating the directory is left to the user. Java 7, Guava, and Junit provide methods
-   *          for creating temporary directories.
-   * @param rootPassword
-   *          Initial root password for instance.
+   * @param dir An empty or nonexistent temp directory that Accumulo and Zookeeper can store data
+   *        in. Creating the directory is left to the user. Java 7, Guava, and Junit provide methods
+   *        for creating temporary directories.
+   * @param rootPassword Initial root password for instance.
    */
   public MiniAccumuloClusterImpl(File dir, String rootPassword) throws IOException {
     this(new MiniAccumuloConfigImpl(dir, rootPassword));
   }
 
   /**
-   * @param config
-   *          initial configuration
+   * @param config initial configuration
    */
   public MiniAccumuloClusterImpl(MiniAccumuloConfigImpl config) throws IOException {
 

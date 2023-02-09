@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test.functional;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Duration;
@@ -66,8 +66,9 @@ public class ZookeeperRestartIT extends ConfigurableMacBase {
       }
 
       // kill zookeeper
-      for (ProcessReference proc : cluster.getProcesses().get(ServerType.ZOOKEEPER))
+      for (ProcessReference proc : cluster.getProcesses().get(ServerType.ZOOKEEPER)) {
         cluster.killProcess(ServerType.ZOOKEEPER, proc);
+      }
 
       // give the servers time to react
       sleepUninterruptibly(1, TimeUnit.SECONDS);

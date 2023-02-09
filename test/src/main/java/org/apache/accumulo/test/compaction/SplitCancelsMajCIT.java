@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test.compaction;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
@@ -97,8 +97,9 @@ public class SplitCancelsMajCIT extends SharedMiniClusterBase {
       thread.join();
       // wait for the restarted compaction
       assertTrue(System.currentTimeMillis() - now > 59_000);
-      if (ex.get() != null)
+      if (ex.get() != null) {
         throw ex.get();
+      }
     }
   }
 }

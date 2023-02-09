@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.gc;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -29,6 +29,7 @@ import java.util.stream.IntStream;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.AccumuloClient;
+import org.apache.accumulo.core.clientImpl.thrift.TInfo;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.fate.zookeeper.ServiceLock;
@@ -43,9 +44,7 @@ import org.apache.accumulo.core.metadata.schema.Ample.DataLevel;
 import org.apache.accumulo.core.metrics.MetricsUtil;
 import org.apache.accumulo.core.securityImpl.thrift.TCredentials;
 import org.apache.accumulo.core.trace.TraceUtil;
-import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.core.util.Halt;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.ServerServices;
 import org.apache.accumulo.core.util.ServerServices.Service;
 import org.apache.accumulo.core.util.threads.ThreadPools;
@@ -62,6 +61,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.net.HostAndPort;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.trace.Span;
@@ -237,24 +238,6 @@ public class SimpleGarbageCollector extends AbstractServer implements Iface {
           log.info(String.format("Collect cycle took %.2f seconds",
               (TimeUnit.NANOSECONDS.toMillis(tStop - tStart) / 1000.0)));
 
-          /*
-           * We want to prune references to fully-replicated WALs from the replication table which
-           * are no longer referenced in the metadata table before running
-           * GarbageCollectWriteAheadLogs to ensure we delete as many files as possible.
-           */
-          Span replSpan = TraceUtil.startSpan(this.getClass(), "replicationClose");
-          try (Scope replScope = replSpan.makeCurrent()) {
-            @SuppressWarnings("deprecation")
-            Runnable closeWals =
-                new org.apache.accumulo.gc.replication.CloseWriteAheadLogReferences(getContext());
-            closeWals.run();
-          } catch (Exception e) {
-            TraceUtil.setException(replSpan, e, false);
-            log.error("Error trying to close write-ahead logs for replication table", e);
-          } finally {
-            replSpan.end();
-          }
-
           // Clean up any unused write-ahead logs
           Span walSpan = TraceUtil.startSpan(this.getClass(), "walogs");
           try (Scope walScope = walSpan.makeCurrent()) {
@@ -349,8 +332,7 @@ public class SimpleGarbageCollector extends AbstractServer implements Iface {
    * throwing an exception.
    *
    * @return true if the file was moved to trash
-   * @throws IOException
-   *           if the volume manager encountered a problem
+   * @throws IOException if the volume manager encountered a problem
    */
   boolean moveToTrash(Path path) throws IOException {
     final VolumeManager fs = getContext().getVolumeManager();
@@ -411,8 +393,7 @@ public class SimpleGarbageCollector extends AbstractServer implements Iface {
   /**
    * Checks if the given string is a directory.
    *
-   * @param delete
-   *          possible directory
+   * @param delete possible directory
    * @return true if string is a directory
    */
   static boolean isDir(String delete) {

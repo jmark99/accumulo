@@ -42,13 +42,14 @@ import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.tabletserver.thrift.ActiveCompaction;
 import org.apache.accumulo.core.tabletserver.thrift.TExternalCompactionJob;
 import org.apache.accumulo.core.trace.TraceUtil;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.thrift.TException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.net.HostAndPort;
 
 public class ExternalCompactionUtil {
 
@@ -82,8 +83,7 @@ public class ExternalCompactionUtil {
   /**
    * Utility for returning the address of a service in the form host:port
    *
-   * @param address
-   *          HostAndPort of service
+   * @param address HostAndPort of service
    * @return host and port
    */
   public static String getHostPortString(HostAndPort address) {
@@ -151,13 +151,10 @@ public class ExternalCompactionUtil {
 
   /**
    *
-   * @param compactor
-   *          compactor address
-   * @param context
-   *          client context
+   * @param compactor compactor address
+   * @param context client context
    * @return list of active compaction
-   * @throws ThriftSecurityException
-   *           tserver permission error
+   * @throws ThriftSecurityException tserver permission error
    */
   public static List<ActiveCompaction> getActiveCompaction(HostAndPort compactor,
       ClientContext context) throws ThriftSecurityException {
@@ -178,10 +175,8 @@ public class ExternalCompactionUtil {
   /**
    * Get the compaction currently running on the Compactor
    *
-   * @param compactorAddr
-   *          compactor address
-   * @param context
-   *          context
+   * @param compactorAddr compactor address
+   * @param context context
    * @return external compaction job or null if none running
    */
   public static TExternalCompactionJob getRunningCompaction(HostAndPort compactorAddr,
@@ -226,8 +221,7 @@ public class ExternalCompactionUtil {
    * RunningCompactions are not fully populated. This method is used from the CompactionCoordinator
    * on a restart to re-populate the set of running compactions on the compactors.
    *
-   * @param context
-   *          server context
+   * @param context server context
    * @return map of compactor and external compaction jobs
    */
   public static List<RunningCompaction> getCompactionsRunningOnCompactors(ClientContext context) {
@@ -291,8 +285,9 @@ public class ExternalCompactionUtil {
   public static int countCompactors(String queueName, ClientContext context) {
     String queueRoot = context.getZooKeeperRoot() + Constants.ZCOMPACTORS + "/" + queueName;
     List<String> children = context.getZooCache().getChildren(queueRoot);
-    if (children == null)
+    if (children == null) {
       return 0;
+    }
 
     int count = 0;
 

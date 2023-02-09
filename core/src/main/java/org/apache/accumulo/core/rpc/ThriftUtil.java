@@ -37,7 +37,6 @@ import javax.net.ssl.TrustManagerFactory;
 import org.apache.accumulo.core.clientImpl.ClientContext;
 import org.apache.accumulo.core.rpc.SaslConnectionParams.SaslMechanism;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.thrift.TException;
@@ -52,6 +51,8 @@ import org.apache.thrift.transport.TTransportFactory;
 import org.apache.thrift.transport.layered.TFramedTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.net.HostAndPort;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -102,12 +103,9 @@ public class ThriftUtil {
    * Create a Thrift client using the given factory with a pooled transport (if available), the
    * address, and client context with no timeout.
    *
-   * @param type
-   *          Thrift client type
-   * @param address
-   *          Server address for client to connect to
-   * @param context
-   *          RPC options
+   * @param type Thrift client type
+   * @param address Server address for client to connect to
+   * @param context RPC options
    */
   public static <T extends TServiceClient> T getClientNoTimeout(ThriftClientTypes<T> type,
       HostAndPort address, ClientContext context) throws TTransportException {
@@ -118,12 +116,9 @@ public class ThriftUtil {
    * Create a Thrift client using the given factory with a pooled transport (if available), the
    * address and client context. Client timeout is extracted from the ClientContext
    *
-   * @param type
-   *          Thrift client type
-   * @param address
-   *          Server address for client to connect to
-   * @param context
-   *          RPC options
+   * @param type Thrift client type
+   * @param address Server address for client to connect to
+   * @param context RPC options
    */
   public static <T extends TServiceClient> T getClient(ThriftClientTypes<T> type,
       HostAndPort address, ClientContext context) throws TTransportException {
@@ -136,14 +131,10 @@ public class ThriftUtil {
    * Create a Thrift client using the given factory with a pooled transport (if available) using the
    * address, client context and timeout
    *
-   * @param type
-   *          Thrift client type
-   * @param address
-   *          Server address for client to connect to
-   * @param context
-   *          RPC options
-   * @param timeout
-   *          Socket timeout which overrides the ClientContext timeout
+   * @param type Thrift client type
+   * @param address Server address for client to connect to
+   * @param context RPC options
+   * @param timeout Socket timeout which overrides the ClientContext timeout
    */
   public static <T extends TServiceClient> T getClient(ThriftClientTypes<T> type,
       HostAndPort address, ClientContext context, long timeout) throws TTransportException {
@@ -163,8 +154,7 @@ public class ThriftUtil {
   /**
    * Return the transport used by the client to the shared pool.
    *
-   * @param iface
-   *          The Client being returned or null.
+   * @param iface The Client being returned or null.
    */
   public static void returnClient(TServiceClient iface, ClientContext context) {
     if (iface != null) {
@@ -175,10 +165,8 @@ public class ThriftUtil {
   /**
    * Create a transport that is not pooled
    *
-   * @param address
-   *          Server address to open the transport to
-   * @param context
-   *          RPC options
+   * @param address Server address to open the transport to
+   * @param context RPC options
    */
   public static TTransport createTransport(HostAndPort address, ClientContext context)
       throws TException {
@@ -189,13 +177,13 @@ public class ThriftUtil {
   /**
    * Get an instance of the TTransportFactory with the provided maximum frame size
    *
-   * @param maxFrameSize
-   *          Maximum Thrift message frame size
+   * @param maxFrameSize Maximum Thrift message frame size
    * @return A, possibly cached, TTransportFactory with the requested maximum frame size
    */
   public static synchronized TTransportFactory transportFactory(long maxFrameSize) {
-    if (maxFrameSize > Integer.MAX_VALUE || maxFrameSize < 1)
+    if (maxFrameSize > Integer.MAX_VALUE || maxFrameSize < 1) {
       throw new RuntimeException("Thrift transport frames are limited to " + Integer.MAX_VALUE);
+    }
     int maxFrameSize1 = (int) maxFrameSize;
     TTransportFactory factory = factoryCache.get(maxFrameSize1);
     if (factory == null) {
@@ -209,14 +197,10 @@ public class ThriftUtil {
    * Create a TTransport for clients to the given address with the provided socket timeout and
    * session-layer configuration
    *
-   * @param address
-   *          Server address to connect to
-   * @param timeout
-   *          Client socket timeout
-   * @param sslParams
-   *          RPC options for SSL servers
-   * @param saslParams
-   *          RPC options for SASL servers
+   * @param address Server address to connect to
+   * @param timeout Client socket timeout
+   * @param sslParams RPC options for SSL servers
+   * @param saslParams RPC options for SASL servers
    * @return An open TTransport which must be closed when finished
    */
   public static TTransport createClientTransport(HostAndPort address, int timeout,
@@ -423,8 +407,7 @@ public class ThriftUtil {
    * SSLContextFactory object is not visible to us. Have to use SslConnectionParams instead of
    * TSSLTransportParameters because no getters exist on TSSLTransportParameters.
    *
-   * @param params
-   *          Parameters to use to create the SSLContext
+   * @param params Parameters to use to create the SSLContext
    */
   @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN",
       justification = "code runs in same security context as user who providing the keystore files")
@@ -470,14 +453,10 @@ public class ThriftUtil {
    * Lifted from Thrift-0.9.1 because it was private. Create an SSLSocket with the given factory,
    * host:port, and timeout.
    *
-   * @param factory
-   *          Factory to create the socket from
-   * @param host
-   *          Destination host
-   * @param port
-   *          Destination port
-   * @param timeout
-   *          Socket timeout
+   * @param factory Factory to create the socket from
+   * @param host Destination host
+   * @param port Destination port
+   * @param timeout Socket timeout
    */
   private static TSocket createClient(SSLSocketFactory factory, String host, int port, int timeout)
       throws TTransportException {
@@ -488,8 +467,9 @@ public class ThriftUtil {
       return new TSocket(socket);
     } catch (Exception e) {
       try {
-        if (socket != null)
+        if (socket != null) {
           socket.close();
+        }
       } catch (IOException ioe) {}
 
       throw new TTransportException("Could not connect to " + host + " on port " + port, e);

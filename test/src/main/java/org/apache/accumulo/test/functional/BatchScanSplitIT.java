@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test.functional;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -115,8 +115,9 @@ public class BatchScanSplitIT extends AccumuloClusterHarness {
 
           log.info(String.format("rate : %06.2f%n", ranges.size() / ((t2 - t1) / 1000.0)));
 
-          if (!found.equals(expected))
+          if (!found.equals(expected)) {
             throw new Exception("Found and expected differ " + found + " " + expected);
+          }
         }
       }
 

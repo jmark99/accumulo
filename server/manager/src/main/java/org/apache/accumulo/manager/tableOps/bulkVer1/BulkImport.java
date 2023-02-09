@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.manager.tableOps.bulkVer1;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -93,15 +93,17 @@ public class BulkImport extends ManagerRepo {
 
   @Override
   public long isReady(long tid, Manager manager) throws Exception {
-    if (!Utils.getReadLock(manager, tableId, tid).tryLock())
+    if (!Utils.getReadLock(manager, tableId, tid).tryLock()) {
       return 100;
+    }
 
     manager.getContext().clearTableListCache();
     if (manager.getContext().getTableState(tableId) == TableState.ONLINE) {
       long reserve1, reserve2;
       reserve1 = reserve2 = Utils.reserveHdfsDirectory(manager, sourceDir, tid);
-      if (reserve1 == 0)
+      if (reserve1 == 0) {
         reserve2 = Utils.reserveHdfsDirectory(manager, errorDir, tid);
+      }
       return reserve2;
     } else {
       throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
@@ -127,18 +129,21 @@ public class BulkImport extends ManagerRepo {
     } catch (FileNotFoundException ex) {
       // ignored
     }
-    if (errorStatus == null)
+    if (errorStatus == null) {
       throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
           TableOperation.BULK_IMPORT, TableOperationExceptionType.BULK_BAD_ERROR_DIRECTORY,
           errorDir + " does not exist");
-    if (!errorStatus.isDirectory())
+    }
+    if (!errorStatus.isDirectory()) {
       throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
           TableOperation.BULK_IMPORT, TableOperationExceptionType.BULK_BAD_ERROR_DIRECTORY,
           errorDir + " is not a directory");
-    if (fs.listStatus(errorPath).length != 0)
+    }
+    if (fs.listStatus(errorPath).length != 0) {
       throw new AcceptableThriftTableOperationException(tableId.canonical(), null,
           TableOperation.BULK_IMPORT, TableOperationExceptionType.BULK_BAD_ERROR_DIRECTORY,
           errorDir + " is not empty");
+    }
 
     ZooArbitrator.start(manager.getContext(), Constants.BULK_ARBITRATOR_TYPE, tid);
     manager.updateBulkImportStatus(sourceDir, BulkImportState.MOVING);
@@ -158,9 +163,10 @@ public class BulkImport extends ManagerRepo {
   private static Path createNewBulkDir(ServerContext context, VolumeManager fs, String sourceDir,
       TableId tableId) throws IOException {
     Path tableDir = fs.matchingFileSystem(new Path(sourceDir), context.getTablesDirs());
-    if (tableDir == null)
+    if (tableDir == null) {
       throw new IOException(
           sourceDir + " is not in the same file system as any volume configured for Accumulo");
+    }
 
     Path directory = new Path(tableDir, tableId.canonical());
     fs.mkdirs(directory);
@@ -175,10 +181,12 @@ public class BulkImport extends ManagerRepo {
 
     while (true) {
       Path newBulkDir = new Path(directory, Constants.BULK_PREFIX + namer.getNextName());
-      if (fs.exists(newBulkDir)) // sanity check
+      if (fs.exists(newBulkDir)) { // sanity check
         throw new IOException("Dir exist when it should not " + newBulkDir);
-      if (fs.mkdirs(newBulkDir))
+      }
+      if (fs.mkdirs(newBulkDir)) {
         return newBulkDir;
+      }
       log.warn("Failed to create {} for unknown reason", newBulkDir);
 
       sleepUninterruptibly(3, TimeUnit.SECONDS);
@@ -199,10 +207,8 @@ public class BulkImport extends ManagerRepo {
     final UniqueNameAllocator namer = manager.getUniqueNameAllocator();
 
     AccumuloConfiguration serverConfig = manager.getConfiguration();
-    @SuppressWarnings("deprecation")
     ExecutorService workers = ThreadPools.getServerThreadPools().createExecutorService(serverConfig,
-        serverConfig.resolve(Property.MANAGER_RENAME_THREADS, Property.MANAGER_BULK_RENAME_THREADS),
-        false);
+        Property.MANAGER_RENAME_THREADS, false);
     List<Future<Exception>> results = new ArrayList<>();
 
     for (FileStatus file : mapFiles) {

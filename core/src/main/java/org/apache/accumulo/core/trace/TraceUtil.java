@@ -25,9 +25,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.clientImpl.thrift.TInfo;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
-import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,12 +116,9 @@ public class TraceUtil {
   /**
    * Record that an Exception occurred in the code covered by a Span
    *
-   * @param span
-   *          the span
-   * @param e
-   *          the exception
-   * @param rethrown
-   *          whether the exception is subsequently re-thrown
+   * @param span the span
+   * @param e the exception
+   * @param rethrown whether the exception is subsequently re-thrown
    */
   public static void setException(Span span, Throwable e, boolean rethrown) {
     if (enabled) {
@@ -134,8 +131,8 @@ public class TraceUtil {
   }
 
   /**
-   * Obtain {@link org.apache.accumulo.core.trace.thrift.TInfo} for the current context. This is
-   * used to send the current trace information to a remote process
+   * Obtain {@link org.apache.accumulo.core.clientImpl.thrift.TInfo} for the current context. This
+   * is used to send the current trace information to a remote process
    */
   public static TInfo traceInfo() {
     TInfo tinfo = new TInfo();
@@ -152,8 +149,7 @@ public class TraceUtil {
    * Span span = tracer.spanBuilder(name).setParent(remoteCtx).startSpan()
    * </pre>
    *
-   * @param tinfo
-   *          tracing information serialized over Thrift
+   * @param tinfo tracing information serialized over Thrift
    */
   private static Context getContext(TInfo tinfo) {
     return W3CTraceContextPropagator.getInstance().extract(Context.current(), tinfo,

@@ -31,10 +31,7 @@ import java.util.Set;
 
 import org.apache.accumulo.core.client.admin.compaction.CompactableFile;
 import org.apache.accumulo.core.conf.ConfigurationTypeHelper;
-import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.util.compaction.CompactionJobPrioritizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
@@ -112,8 +109,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 
 public class DefaultCompactionPlanner implements CompactionPlanner {
-
-  private static final Logger log = LoggerFactory.getLogger(DefaultCompactionPlanner.class);
 
   public static class ExecutorConfig {
     String type;
@@ -209,19 +204,8 @@ public class DefaultCompactionPlanner implements CompactionPlanner {
     determineMaxFilesToCompact(params);
   }
 
-  @SuppressWarnings("removal")
   private void determineMaxFilesToCompact(InitParameters params) {
-    String fqo = params.getFullyQualifiedOption("maxOpen");
-    if (!params.getServiceEnvironment().getConfiguration().isSet(fqo)
-        && params.getServiceEnvironment().getConfiguration()
-            .isSet(Property.TSERV_MAJC_THREAD_MAXOPEN.getKey())) {
-      log.warn("The property " + Property.TSERV_MAJC_THREAD_MAXOPEN.getKey()
-          + " was set, it is deprecated.  Set the " + fqo + " option instead.");
-      this.maxFilesToCompact = Integer.parseInt(params.getServiceEnvironment().getConfiguration()
-          .get(Property.TSERV_MAJC_THREAD_MAXOPEN.getKey()));
-    } else {
-      this.maxFilesToCompact = Integer.parseInt(params.getOptions().getOrDefault("maxOpen", "10"));
-    }
+    this.maxFilesToCompact = Integer.parseInt(params.getOptions().getOrDefault("maxOpen", "10"));
   }
 
   @Override
@@ -319,8 +303,9 @@ public class DefaultCompactionPlanner implements CompactionPlanner {
   private long getMaxSizeToCompact(CompactionKind kind) {
     if (kind == CompactionKind.SYSTEM) {
       Long max = executors.get(executors.size() - 1).maxSize;
-      if (max != null)
+      if (max != null) {
         return max;
+      }
     }
     return Long.MAX_VALUE;
   }
@@ -356,8 +341,9 @@ public class DefaultCompactionPlanner implements CompactionPlanner {
   public static Collection<CompactableFile>
       findMaximalRequiredSetToCompact(Collection<CompactableFile> files, int maxFilesToCompact) {
 
-    if (files.size() <= maxFilesToCompact)
+    if (files.size() <= maxFilesToCompact) {
       return files;
+    }
 
     List<CompactableFile> sortedFiles = sortByFileSize(files);
 
@@ -373,8 +359,9 @@ public class DefaultCompactionPlanner implements CompactionPlanner {
 
   public static Collection<CompactableFile> findMapFilesToCompact(Set<CompactableFile> files,
       double ratio, int maxFilesToCompact, long maxSizeToCompact) {
-    if (files.size() <= 1)
+    if (files.size() <= 1) {
       return Collections.emptySet();
+    }
 
     // sort files from smallest to largest. So position 0 has the smallest file.
     List<CompactableFile> sortedFiles = sortByFileSize(files);
@@ -391,16 +378,18 @@ public class DefaultCompactionPlanner implements CompactionPlanner {
 
     if (maxSizeIndex < sortedFiles.size()) {
       sortedFiles = sortedFiles.subList(0, maxSizeIndex);
-      if (sortedFiles.size() <= 1)
+      if (sortedFiles.size() <= 1) {
         return Collections.emptySet();
+      }
     }
 
     var loops = Math.max(1, sortedFiles.size() - maxFilesToCompact + 1);
     for (int i = 0; i < loops; i++) {
       var filesToCompact = findMapFilesToCompact(
           sortedFiles.subList(i, Math.min(sortedFiles.size(), maxFilesToCompact) + i), ratio);
-      if (!filesToCompact.isEmpty())
+      if (!filesToCompact.isEmpty()) {
         return filesToCompact;
+      }
     }
 
     return Collections.emptySet();
@@ -475,8 +464,9 @@ public class DefaultCompactionPlanner implements CompactionPlanner {
       larsmaIndex = goodIndex;
     }
 
-    if (larsmaIndex == -1)
+    if (larsmaIndex == -1) {
       return Collections.emptySet();
+    }
 
     return sortedFiles.subList(0, larsmaIndex + 1);
   }
@@ -486,8 +476,9 @@ public class DefaultCompactionPlanner implements CompactionPlanner {
     long size = files.stream().mapToLong(CompactableFile::getEstimatedSize).sum();
 
     for (Executor executor : executors) {
-      if (executor.maxSize == null || size < executor.maxSize)
+      if (executor.maxSize == null || size < executor.maxSize) {
         return executor.ceid;
+      }
     }
 
     return executors.get(executors.size() - 1).ceid;

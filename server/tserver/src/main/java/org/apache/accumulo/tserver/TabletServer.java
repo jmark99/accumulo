@@ -18,12 +18,12 @@
  */
 package org.apache.accumulo.tserver;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.ECOMP;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.FILES;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.LOGS;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.PREV_ROW;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 import static org.apache.accumulo.core.util.threads.ThreadPools.watchCriticalFixedDelay;
 import static org.apache.accumulo.core.util.threads.ThreadPools.watchCriticalScheduledTask;
 import static org.apache.accumulo.core.util.threads.ThreadPools.watchNonCriticalScheduledTask;
@@ -97,7 +97,6 @@ import org.apache.accumulo.core.tabletserver.log.LogEntry;
 import org.apache.accumulo.core.trace.TraceUtil;
 import org.apache.accumulo.core.util.ComparablePair;
 import org.apache.accumulo.core.util.Halt;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.MapCounter;
 import org.apache.accumulo.core.util.Pair;
 import org.apache.accumulo.core.util.Retry;
@@ -166,6 +165,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
+import com.google.common.net.HostAndPort;
 
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
@@ -198,8 +198,6 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
   }
 
   private final LogSorter logSorter;
-  @SuppressWarnings("deprecation")
-  private org.apache.accumulo.tserver.replication.ReplicationWorker replWorker = null;
   final TabletStatsKeeper statsKeeper;
   private final AtomicInteger logIdGenerator = new AtomicInteger();
 
@@ -224,7 +222,6 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
   private ServiceLock tabletServerLock;
 
   private TServer server;
-  private volatile TServer replServer;
 
   private DistributedWorkQueue bulkFailedCopyQ;
 
@@ -253,9 +250,6 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
     log.info("Instance " + getInstanceID());
     this.sessionManager = new SessionManager(context);
     this.logSorter = new LogSorter(context, aconf);
-    @SuppressWarnings("deprecation")
-    var replWorker = new org.apache.accumulo.tserver.replication.ReplicationWorker(context);
-    this.replWorker = replWorker;
     this.statsKeeper = new TabletStatsKeeper();
     final int numBusyTabletsToLog = aconf.getCount(Property.TSERV_LOG_BUSY_TABLETS_COUNT);
     final long logBusyTabletsDelay =
@@ -309,12 +303,8 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
         }), 5, 5, TimeUnit.SECONDS);
     watchNonCriticalScheduledTask(future);
 
-    @SuppressWarnings("deprecation")
-    final long walMaxSize =
-        aconf.getAsBytes(aconf.resolve(Property.TSERV_WAL_MAX_SIZE, Property.TSERV_WALOG_MAX_SIZE));
-    @SuppressWarnings("deprecation")
-    final long walMaxAge = aconf
-        .getTimeInMillis(aconf.resolve(Property.TSERV_WAL_MAX_AGE, Property.TSERV_WALOG_MAX_AGE));
+    final long walMaxSize = aconf.getAsBytes(Property.TSERV_WAL_MAX_SIZE);
+    final long walMaxAge = aconf.getTimeInMillis(Property.TSERV_WAL_MAX_AGE);
     final long minBlockSize =
         context.getHadoopConf().getLong("dfs.namenode.fs-limits.min-block-size", 0);
     if (minBlockSize != 0 && minBlockSize > walMaxSize) {
@@ -324,18 +314,12 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
           + " or decrease dfs.namenode.fs-limits.min-block-size in hdfs-site.xml.");
     }
 
-    @SuppressWarnings("deprecation")
     final long toleratedWalCreationFailures =
-        aconf.getCount(aconf.resolve(Property.TSERV_WAL_TOLERATED_CREATION_FAILURES,
-            Property.TSERV_WALOG_TOLERATED_CREATION_FAILURES));
-    @SuppressWarnings("deprecation")
+        aconf.getCount(Property.TSERV_WAL_TOLERATED_CREATION_FAILURES);
     final long walFailureRetryIncrement =
-        aconf.getTimeInMillis(aconf.resolve(Property.TSERV_WAL_TOLERATED_WAIT_INCREMENT,
-            Property.TSERV_WALOG_TOLERATED_WAIT_INCREMENT));
-    @SuppressWarnings("deprecation")
+        aconf.getTimeInMillis(Property.TSERV_WAL_TOLERATED_WAIT_INCREMENT);
     final long walFailureRetryMax =
-        aconf.getTimeInMillis(aconf.resolve(Property.TSERV_WAL_TOLERATED_MAXIMUM_WAIT_DURATION,
-            Property.TSERV_WALOG_TOLERATED_MAXIMUM_WAIT_DURATION));
+        aconf.getTimeInMillis(Property.TSERV_WAL_TOLERATED_MAXIMUM_WAIT_DURATION);
     final RetryFactory walCreationRetryFactory =
         Retry.builder().maxRetries(toleratedWalCreationFailures)
             .retryAfter(walFailureRetryIncrement, TimeUnit.MILLISECONDS)
@@ -609,39 +593,12 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
     thriftClientHandler = newTabletClientHandler(watcher, writeTracker);
     scanClientHandler = newThriftScanClientHandler(writeTracker);
 
-    TProcessor processor = ThriftProcessorTypes.getTabletServerTProcessor(clientHandler,
-        thriftClientHandler, scanClientHandler, getContext());
+    TProcessor processor =
+        ThriftProcessorTypes.getTabletServerTProcessor(clientHandler, thriftClientHandler,
+            scanClientHandler, thriftClientHandler, thriftClientHandler, getContext());
     HostAndPort address = startServer(getConfiguration(), clientAddress.getHost(), processor);
     log.info("address = {}", address);
     return address;
-  }
-
-  @Deprecated
-  private void startReplicationService() throws UnknownHostException {
-    final var handler =
-        new org.apache.accumulo.tserver.replication.ReplicationServicerHandler(this);
-    var processor = ThriftProcessorTypes.getReplicationClientTProcessor(handler, getContext());
-    Property maxMessageSizeProperty =
-        getConfiguration().get(Property.TSERV_MAX_MESSAGE_SIZE) != null
-            ? Property.TSERV_MAX_MESSAGE_SIZE : Property.GENERAL_MAX_MESSAGE_SIZE;
-    ServerAddress sp = TServerUtils.startServer(getContext(), clientAddress.getHost(),
-        Property.REPLICATION_RECEIPT_SERVICE_PORT, processor, "ReplicationServicerHandler",
-        "Replication Servicer", Property.TSERV_PORTSEARCH, Property.REPLICATION_MIN_THREADS, null,
-        Property.REPLICATION_THREADCHECK, maxMessageSizeProperty);
-    this.replServer = sp.server;
-    log.info("Started replication service on {}", sp.address);
-
-    try {
-      // The replication service is unique to the thrift service for a tserver, not just a host.
-      // Advertise the host and port for replication service given the host and port for the
-      // tserver.
-      getContext().getZooReaderWriter().putPersistentData(getContext().getZooKeeperRoot()
-          + org.apache.accumulo.core.replication.ReplicationConstants.ZOO_TSERVERS + "/"
-          + clientAddress, sp.address.toString().getBytes(UTF_8), NodeExistsPolicy.OVERWRITE);
-    } catch (Exception e) {
-      log.error("Could not advertise replication service port", e);
-      throw new RuntimeException(e);
-    }
   }
 
   @Override
@@ -719,24 +676,10 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
     }
   }
 
-  @Deprecated
-  private void initializeZkForReplication() {
-    try {
-      org.apache.accumulo.server.replication.ZooKeeperInitialization.ensureZooKeeperInitialized(
-          getContext().getZooReaderWriter(), getContext().getZooKeeperRoot());
-    } catch (KeeperException | InterruptedException e) {
-      throw new IllegalStateException("Exception while ensuring ZooKeeper is initialized", e);
-    }
-  }
-
   // main loop listens for client requests
   @Override
   public void run() {
     SecurityUtil.serverLogin(getConfiguration());
-
-    // To make things easier on users/devs, and to avoid creating an upgrade path to 1.7
-    // We can just make the zookeeper paths before we try to use.
-    initializeZkForReplication();
 
     if (authKeyWatcher != null) {
       log.info("Seeding ZooKeeper watcher for authentication keys");
@@ -807,18 +750,6 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
       throw new RuntimeException(ex);
     }
     final AccumuloConfiguration aconf = getConfiguration();
-    // if the replication name is ever set, then start replication services
-    @SuppressWarnings("deprecation")
-    Property p = Property.REPLICATION_NAME;
-    ScheduledFuture<?> future = context.getScheduledExecutor().scheduleWithFixedDelay(() -> {
-      if (this.replServer == null) {
-        if (!getConfiguration().get(p).isEmpty()) {
-          log.info(p.getKey() + " was set, starting repl services.");
-          setupReplication(aconf);
-        }
-      }
-    }, 0, 5, TimeUnit.SECONDS);
-    watchNonCriticalScheduledTask(future);
 
     long tabletCheckFrequency = aconf.getTimeInMillis(Property.TSERV_HEALTH_CHECK_FREQ);
     // Periodically check that metadata of tablets matches what is held in memory
@@ -937,10 +868,6 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
         }
       }
     }
-    log.debug("Stopping Replication Server");
-    if (this.replServer != null) {
-      this.replServer.stop();
-    }
 
     log.debug("Stopping Thrift Servers");
     if (server != null) {
@@ -963,30 +890,6 @@ public class TabletServer extends AbstractServer implements TabletHostingServer 
     } catch (Exception e) {
       log.warn("Failed to release tablet server lock", e);
     }
-  }
-
-  @SuppressWarnings("deprecation")
-  private void setupReplication(AccumuloConfiguration aconf) {
-    // Start the thrift service listening for incoming replication requests
-    try {
-      startReplicationService();
-    } catch (UnknownHostException e) {
-      throw new RuntimeException("Failed to start replication service", e);
-    }
-
-    // Start the pool to handle outgoing replications
-    final ThreadPoolExecutor replicationThreadPool = ThreadPools.getServerThreadPools()
-        .createExecutorService(getConfiguration(), Property.REPLICATION_WORKER_THREADS, false);
-    replWorker.setExecutor(replicationThreadPool);
-    replWorker.run();
-
-    // Check the configuration value for the size of the pool and, if changed, resize the pool
-    Runnable replicationWorkThreadPoolResizer = () -> {
-      ThreadPools.resizePool(replicationThreadPool, aconf, Property.REPLICATION_WORKER_THREADS);
-    };
-    ScheduledFuture<?> future = context.getScheduledExecutor()
-        .scheduleWithFixedDelay(replicationWorkThreadPoolResizer, 10, 30, TimeUnit.SECONDS);
-    watchNonCriticalScheduledTask(future);
   }
 
   public String getClientAddressString() {

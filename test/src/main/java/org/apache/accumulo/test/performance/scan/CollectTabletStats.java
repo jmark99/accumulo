@@ -67,7 +67,6 @@ import org.apache.accumulo.core.metadata.MetadataServicer;
 import org.apache.accumulo.core.metadata.TabletFile;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.spi.crypto.NoCryptoServiceFactory;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.core.util.Stat;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.cli.ServerUtilOpts;
@@ -83,6 +82,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.Parameter;
+import com.google.common.net.HostAndPort;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -111,8 +111,9 @@ public class CollectTabletStats {
     opts.parseArgs(CollectTabletStats.class.getName(), args);
 
     String[] columnsTmp = {};
-    if (opts.columns != null)
+    if (opts.columns != null) {
       columnsTmp = opts.columns.split(",");
+    }
     final String[] columns = columnsTmp;
 
     ServerContext context = opts.getServerContext();
@@ -536,8 +537,9 @@ public class CollectTabletStats {
       int count = 0;
 
       for (Entry<Key,Value> entry : scanner) {
-        if (entry != null)
+        if (entry != null) {
           count++;
+        }
       }
       return count;
     }

@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.tserver.tablet;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 import java.io.IOException;
 import java.security.SecureRandom;
@@ -145,8 +145,9 @@ public class MinorCompactor extends FileCompactor {
           log.warn("Failed to delete failed MinC file {} {}", outputFileName, e.getMessage());
         }
 
-        if (isTableDeleting())
+        if (isTableDeleting()) {
           return new CompactionStats(0, 0);
+        }
 
       } while (true);
     } finally {

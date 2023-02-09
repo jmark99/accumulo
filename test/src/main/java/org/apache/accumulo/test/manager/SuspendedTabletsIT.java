@@ -60,7 +60,6 @@ import org.apache.accumulo.core.metadata.TabletLocationState;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.spi.balancer.HostRegexTableLoadBalancer;
 import org.apache.accumulo.core.spi.balancer.data.TabletServerId;
-import org.apache.accumulo.core.util.HostAndPort;
 import org.apache.accumulo.minicluster.ServerType;
 import org.apache.accumulo.miniclusterImpl.MiniAccumuloConfigImpl;
 import org.apache.accumulo.miniclusterImpl.ProcessReference;
@@ -77,6 +76,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
+import com.google.common.net.HostAndPort;
 
 public class SuspendedTabletsIT extends ConfigurableMacBase {
   private static final Logger log = LoggerFactory.getLogger(SuspendedTabletsIT.class);
@@ -239,8 +239,7 @@ public class SuspendedTabletsIT extends ConfigurableMacBase {
   /**
    * Main test body for suspension tests.
    *
-   * @param serverStopper
-   *          callback which shuts down some tablet servers.
+   * @param serverStopper callback which shuts down some tablet servers.
    */
   private void suspensionTestBody(TServerKiller serverStopper) throws Exception {
     try (AccumuloClient client = Accumulo.newClient().from(getClientProperties()).build()) {

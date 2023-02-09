@@ -44,6 +44,7 @@ import org.apache.accumulo.core.clientImpl.thrift.ClientService;
 import org.apache.accumulo.core.clientImpl.thrift.ConfigurationType;
 import org.apache.accumulo.core.clientImpl.thrift.SecurityErrorCode;
 import org.apache.accumulo.core.clientImpl.thrift.TDiskUsage;
+import org.apache.accumulo.core.clientImpl.thrift.TInfo;
 import org.apache.accumulo.core.clientImpl.thrift.TVersionedProperties;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperation;
 import org.apache.accumulo.core.clientImpl.thrift.TableOperationExceptionType;
@@ -60,7 +61,6 @@ import org.apache.accumulo.core.security.NamespacePermission;
 import org.apache.accumulo.core.security.SystemPermission;
 import org.apache.accumulo.core.security.TablePermission;
 import org.apache.accumulo.core.securityImpl.thrift.TCredentials;
-import org.apache.accumulo.core.trace.thrift.TInfo;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.conf.store.NamespacePropKey;
 import org.apache.accumulo.server.conf.store.SystemPropKey;
@@ -107,9 +107,10 @@ public class ClientServiceHandler implements ClientService.Iface {
       // and check again
       context.clearTableListCache();
       namespaceId = Namespaces.lookupNamespaceId(context, namespaceName);
-      if (namespaceId == null)
+      if (namespaceId == null) {
         throw new ThriftTableOperationException(null, namespaceName, operation,
             TableOperationExceptionType.NAMESPACE_NOTFOUND, null);
+      }
     }
     return namespaceId;
   }
@@ -298,8 +299,9 @@ public class ClientServiceHandler implements ClientService.Iface {
     Map<String,String> result = new HashMap<>();
     for (Entry<String,String> entry : conf) {
       String key = entry.getKey();
-      if (!Property.isSensitive(key))
+      if (!Property.isSensitive(key)) {
         result.put(key, entry.getValue());
+      }
     }
     return result;
   }
@@ -405,9 +407,10 @@ public class ClientServiceHandler implements ClientService.Iface {
       final String tableId, final List<String> files, final String errorDir, final boolean setTime)
       throws ThriftSecurityException, ThriftTableOperationException, TException {
     try {
-      if (!security.canPerformSystemActions(credentials))
+      if (!security.canPerformSystemActions(credentials)) {
         throw new AccumuloSecurityException(credentials.getPrincipal(),
             SecurityErrorCode.PERMISSION_DENIED);
+      }
       bulkImportStatus.updateBulkImportStatus(files, BulkImportState.INITIAL);
       log.debug("Got request to bulk import files to table({}): {}", tableId, files);
 
@@ -506,9 +509,10 @@ public class ClientServiceHandler implements ClientService.Iface {
         TableId tableId = checkTableId(context, table, null);
         tableIds.add(tableId);
         NamespaceId namespaceId = context.getNamespaceId(tableId);
-        if (!security.canScan(credentials, tableId, namespaceId))
+        if (!security.canScan(credentials, tableId, namespaceId)) {
           throw new ThriftSecurityException(credentials.getPrincipal(),
               SecurityErrorCode.PERMISSION_DENIED);
+        }
       }
 
       // use the same set of tableIds that were validated above to avoid race conditions

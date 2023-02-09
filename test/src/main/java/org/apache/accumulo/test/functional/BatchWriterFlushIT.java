@@ -18,7 +18,7 @@
  */
 package org.apache.accumulo.test.functional;
 
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -130,13 +130,15 @@ public class BatchWriterFlushIT extends AccumuloClusterHarness {
 
           Iterator<Entry<Key,Value>> iter = scanner.iterator();
 
-          if (!iter.hasNext())
+          if (!iter.hasNext()) {
             throw new Exception(" row " + rowToLookup + " not found after flush");
+          }
 
           Entry<Key,Value> entry = iter.next();
 
-          if (iter.hasNext())
+          if (iter.hasNext()) {
             throw new Exception("Scanner returned too much");
+          }
 
           verifyEntry(rowToLookup, entry);
         }
@@ -149,16 +151,18 @@ public class BatchWriterFlushIT extends AccumuloClusterHarness {
         for (int j = 0; j < NUM_TO_FLUSH; j++) {
           int row = i * NUM_TO_FLUSH + j;
 
-          if (!iter.hasNext())
+          if (!iter.hasNext()) {
             throw new Exception("Scan stopped prematurely at " + row);
+          }
 
           Entry<Key,Value> entry = iter.next();
 
           verifyEntry(row, entry);
         }
 
-        if (iter.hasNext())
+        if (iter.hasNext()) {
           throw new Exception("Scanner returned too much");
+        }
 
       }
 

@@ -66,7 +66,7 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.dataImpl.thrift.TConstraintViolationSummary;
-import org.apache.accumulo.core.tabletserver.thrift.ConstraintViolationException;
+import org.apache.accumulo.core.tabletingest.thrift.ConstraintViolationException;
 import org.apache.accumulo.core.util.BadArgumentException;
 import org.apache.accumulo.core.util.format.DefaultFormatter;
 import org.apache.accumulo.core.util.format.Formatter;
@@ -261,14 +261,15 @@ public class Shell extends ShellOptions implements KeywordExecutable {
    * Configures the shell using the provided options. Not for client use.
    *
    * @return true if the shell was successfully configured, false otherwise.
-   * @throws IOException
-   *           if problems occur creating the LineReader
+   * @throws IOException if problems occur creating the LineReader
    */
   public boolean config(String... args) throws IOException {
-    if (this.terminal == null)
+    if (this.terminal == null) {
       this.terminal = TerminalBuilder.builder().jansi(false).build();
-    if (this.reader == null)
+    }
+    if (this.reader == null) {
       this.reader = LineReaderBuilder.builder().terminal(this.terminal).build();
+    }
     this.writer = this.terminal.writer();
 
     ShellOptionsJC options = new ShellOptionsJC();
@@ -461,37 +462,13 @@ public class Shell extends ShellOptions implements KeywordExecutable {
     } else {
       throw new IllegalArgumentException("No table or namespace specified");
     }
-    String tableContext = getTableContextFromProps(tableProps);
+    String tableContext = tableProps.get(Property.TABLE_CLASSLOADER_CONTEXT.getKey());
 
     if (tableContext != null && !tableContext.isEmpty()) {
       ClassLoaderUtil.initContextFactory(new ConfigurationCopy(
           shellState.getAccumuloClient().instanceOperations().getSystemConfiguration()));
     }
     return ClassLoaderUtil.getClassLoader(tableContext);
-  }
-
-  private static String getTableContextFromProps(Map<String,String> props) {
-    String tableContext = null;
-    for (Entry<String,String> entry : props.entrySet()) {
-      // look for either the old property or the new one, but
-      // if the new one is set, stop looking and let it take precedence
-      if (entry.getKey().equals(Property.TABLE_CLASSLOADER_CONTEXT.getKey())
-          && entry.getValue() != null && !entry.getValue().isEmpty()) {
-        return entry.getValue();
-      }
-      @SuppressWarnings("removal")
-      Property TABLE_CLASSPATH = Property.TABLE_CLASSPATH;
-      if (entry.getKey().equals(TABLE_CLASSPATH.getKey())) {
-        // don't return even if this is set; instead,
-        // keep looking, in case we find the newer property set
-        tableContext = entry.getValue();
-        if (tableContext != null && !tableContext.isEmpty()) {
-          log.warn("Deprecated table context property detected. '{}' should be replaced by '{}'",
-              TABLE_CLASSPATH.getKey(), Property.TABLE_CLASSLOADER_CONTEXT.getKey());
-        }
-      }
-    }
-    return tableContext;
   }
 
   @Override
@@ -546,6 +523,12 @@ public class Shell extends ShellOptions implements KeywordExecutable {
     if (!accumuloDir.exists() && !accumuloDir.mkdirs()) {
       log.warn("Unable to make directory for history at {}", accumuloDir);
     }
+
+    // Disable shell highlighting
+    reader.unsetOpt(LineReader.Option.DISABLE_HIGHLIGHTER);
+
+    // Disable bracketed paste
+    reader.unsetOpt(LineReader.Option.BRACKETED_PASTE);
 
     // Remove Timestamps for history file. Fixes incompatibility issues
     reader.unsetOpt(LineReader.Option.HISTORY_TIMESTAMPED);
@@ -1210,8 +1193,7 @@ public class Shell extends ShellOptions implements KeywordExecutable {
   /**
    * Return the formatter for the given table.
    *
-   * @param tableName
-   *          the table name
+   * @param tableName the table name
    * @return the formatter class for the given table
    */
   public Class<? extends Formatter> getFormatter(String tableName) {

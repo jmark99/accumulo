@@ -22,7 +22,8 @@ import static java.util.Objects.requireNonNull;
 
 import org.apache.accumulo.core.metadata.TServerInstance;
 import org.apache.accumulo.core.spi.balancer.data.TabletServerId;
-import org.apache.accumulo.core.util.HostAndPort;
+
+import com.google.common.net.HostAndPort;
 
 /**
  * @since 2.1.0
@@ -65,10 +66,12 @@ public class TabletServerIdImpl implements TabletServerId {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o)
+    if (this == o) {
       return true;
-    if (o == null || getClass() != o.getClass())
+    }
+    if (o == null || getClass() != o.getClass()) {
       return false;
+    }
     TabletServerIdImpl that = (TabletServerIdImpl) o;
     return tServerInstance.equals(that.tServerInstance);
   }

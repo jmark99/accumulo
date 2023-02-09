@@ -20,10 +20,10 @@ package org.apache.accumulo.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Suppliers.memoize;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -92,6 +92,7 @@ public class ServerContext extends ClientContext {
   private final ZooReaderWriter zooReaderWriter;
   private final ServerDirs serverDirs;
   private final Supplier<ZooPropStore> propStore;
+  private final Supplier<String> zkUserPath;
 
   // lazily loaded resources, only loaded when needed
   private final Supplier<TableManager> tableManager;
@@ -113,6 +114,7 @@ public class ServerContext extends ClientContext {
     serverDirs = info.getServerDirs();
 
     propStore = memoize(() -> ZooPropStore.initialize(getInstanceID(), getZooReaderWriter()));
+    zkUserPath = memoize(() -> Constants.ZROOT + "/" + getInstanceID() + Constants.ZUSERS);
 
     tableManager = memoize(() -> new TableManager(this));
     nameAllocator = memoize(() -> new UniqueNameAllocator(this));
@@ -298,7 +300,9 @@ public class ServerContext extends ClientContext {
   public static void ensureDataVersionCompatible(int dataVersion) {
     if (!AccumuloDataVersion.CAN_RUN.contains(dataVersion)) {
       throw new IllegalStateException("This version of accumulo (" + Constants.VERSION
-          + ") is not compatible with files stored using data version " + dataVersion);
+          + ") is not compatible with files stored using data version " + dataVersion
+          + ". Please upgrade from " + AccumuloDataVersion.oldestUpgradeableVersionName()
+          + " or later.");
     }
   }
 
@@ -318,8 +322,9 @@ public class ServerContext extends ClientContext {
     int unknownHostTries = 3;
     while (true) {
       try {
-        if (getVolumeManager().isReady())
+        if (getVolumeManager().isReady()) {
           break;
+        }
         log.warn("Waiting for the NameNode to leave safemode");
       } catch (IOException ex) {
         log.warn("Unable to connect to HDFS", ex);
@@ -368,8 +373,9 @@ public class ServerContext extends ClientContext {
     ensureDataVersionCompatible(dataVersion);
 
     TreeMap<String,String> sortedProps = new TreeMap<>();
-    for (Map.Entry<String,String> entry : conf)
+    for (Map.Entry<String,String> entry : conf) {
       sortedProps.put(entry.getKey(), entry.getValue());
+    }
 
     for (Map.Entry<String,String> entry : sortedProps.entrySet()) {
       String key = entry.getKey();
@@ -441,6 +447,10 @@ public class ServerContext extends ClientContext {
 
   public AuditedSecurityOperation getSecurityOperation() {
     return securityOperation.get();
+  }
+
+  public String zkUserPath() {
+    return zkUserPath.get();
   }
 
 }

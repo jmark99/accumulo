@@ -18,6 +18,7 @@
  */
 package org.apache.accumulo.gc;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.DIR;
 import static org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType.FILES;
@@ -40,11 +41,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.apache.accumulo.core.Constants;
-import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.IsolatedScanner;
-import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
-import org.apache.accumulo.core.client.TableOfflineException;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.TableId;
@@ -63,14 +61,12 @@ import org.apache.accumulo.core.metadata.schema.TabletMetadata;
 import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.Pair;
-import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.core.util.threads.ThreadPools;
 import org.apache.accumulo.core.volume.Volume;
 import org.apache.accumulo.server.ServerContext;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.fs.VolumeUtil;
 import org.apache.accumulo.server.gc.GcVolumeUtil;
-import org.apache.accumulo.server.replication.proto.Replication;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.zookeeper.KeeperException;
@@ -79,9 +75,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Maps;
-import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * A single garbage collection performed on a table (Root, MD) or all User tables.
@@ -214,7 +207,7 @@ public class GCRun implements GarbageCollectionEnvironment {
         }
         ioe.addSuppressed(e);
         log.error("Error getting tables from ZooKeeper, retrying in {} seconds", retries, e);
-        UtilWaitThread.sleepUninterruptibly(retries, TimeUnit.SECONDS);
+        sleepUninterruptibly(retries, TimeUnit.SECONDS);
       }
     }
     throw ioe;
@@ -366,31 +359,6 @@ public class GCRun implements GarbageCollectionEnvironment {
     inUse += i;
   }
 
-  @Override
-  @Deprecated
-  public Iterator<Map.Entry<String,Replication.Status>> getReplicationNeededIterator() {
-    AccumuloClient client = context;
-    try {
-      Scanner s = org.apache.accumulo.core.replication.ReplicationTable.getScanner(client);
-      org.apache.accumulo.core.replication.ReplicationSchema.StatusSection.limit(s);
-      return Iterators.transform(s.iterator(), input -> {
-        String file = input.getKey().getRow().toString();
-        Replication.Status stat;
-        try {
-          stat = Replication.Status.parseFrom(input.getValue().get());
-        } catch (InvalidProtocolBufferException e) {
-          log.warn("Could not deserialize protobuf for: {}", input.getKey());
-          stat = null;
-        }
-        return Maps.immutableEntry(file, stat);
-      });
-    } catch (org.apache.accumulo.core.replication.ReplicationTableOfflineException
-        | TableOfflineException e) {
-      // No elements that we need to preclude
-      return Collections.emptyIterator();
-    }
-  }
-
   @VisibleForTesting
   static void minimizeDeletes(SortedMap<String,String> confirmedDeletes,
       List<String> processedDeletes, VolumeManager fs, Logger logger) {
@@ -460,8 +428,7 @@ public class GCRun implements GarbageCollectionEnvironment {
    * throwing an exception.
    *
    * @return true if the file was moved to trash
-   * @throws IOException
-   *           if the volume manager encountered a problem
+   * @throws IOException if the volume manager encountered a problem
    */
   boolean moveToTrash(Path path) throws IOException {
     final VolumeManager fs = context.getVolumeManager();
@@ -518,8 +485,7 @@ public class GCRun implements GarbageCollectionEnvironment {
    * return the table id for the accumulo.root table.
    *
    * @return The table ids
-   * @throws InterruptedException
-   *           if interrupted when calling ZooKeeper
+   * @throws InterruptedException if interrupted when calling ZooKeeper
    */
   @Override
   public Set<TableId> getCandidateTableIDs() throws InterruptedException {

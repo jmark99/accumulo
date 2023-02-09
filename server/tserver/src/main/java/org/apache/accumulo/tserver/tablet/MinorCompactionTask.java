@@ -20,6 +20,7 @@ package org.apache.accumulo.tserver.tablet;
 
 import java.io.IOException;
 
+import org.apache.accumulo.core.file.FilePrefix;
 import org.apache.accumulo.core.metadata.TabletFile;
 import org.apache.accumulo.core.metadata.schema.DataFileValue;
 import org.apache.accumulo.core.trace.TraceUtil;
@@ -76,7 +77,7 @@ class MinorCompactionTask implements Runnable {
           while (true) {
             try {
               if (newFile == null) {
-                newFile = tablet.getNextMapFilename("F");
+                newFile = tablet.getNextMapFilename(FilePrefix.MINOR_COMPACTION);
                 tmpFile = new TabletFile(new Path(newFile.getPathStr() + "_tmp"));
               }
               /*
@@ -92,10 +93,11 @@ class MinorCompactionTask implements Runnable {
               break;
             } catch (IOException e) {
               // An IOException could have occurred while creating the new file
-              if (newFile == null)
+              if (newFile == null) {
                 log.warn("Failed to create new file for minor compaction {}", e.getMessage(), e);
-              else
+              } else {
                 log.warn("Failed to write to write ahead log {}", e.getMessage(), e);
+              }
 
             }
           }

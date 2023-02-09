@@ -35,14 +35,17 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.accumulo.core.client.IteratorSetting;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
+import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.ByteSequence;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.TableId;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.file.FileOperations;
+import org.apache.accumulo.core.file.FileOperations.WriterBuilder;
 import org.apache.accumulo.core.file.FileSKVIterator;
 import org.apache.accumulo.core.file.FileSKVWriter;
+import org.apache.accumulo.core.iterators.IteratorUtil;
 import org.apache.accumulo.core.iterators.IteratorUtil.IteratorScope;
 import org.apache.accumulo.core.iterators.SortedKeyValueIterator;
 import org.apache.accumulo.core.iteratorsImpl.IteratorConfigUtil;
@@ -50,6 +53,8 @@ import org.apache.accumulo.core.iteratorsImpl.system.ColumnFamilySkippingIterato
 import org.apache.accumulo.core.iteratorsImpl.system.DeletingIterator;
 import org.apache.accumulo.core.iteratorsImpl.system.MultiIterator;
 import org.apache.accumulo.core.iteratorsImpl.system.TimeSettingIterator;
+import org.apache.accumulo.core.metadata.MetadataTable;
+import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.metadata.StoredTabletFile;
 import org.apache.accumulo.core.metadata.TabletFile;
 import org.apache.accumulo.core.metadata.schema.DataFileValue;
@@ -212,9 +217,21 @@ public class FileCompactor implements Callable<CompactionStats> {
     try {
       FileOperations fileFactory = FileOperations.getInstance();
       FileSystem ns = this.fs.getFileSystemByPath(outputFile.getPath());
-      mfw = fileFactory.newWriterBuilder()
+
+      final boolean isMinC = env.getIteratorScope() == IteratorUtil.IteratorScope.minc;
+
+      final boolean dropCacheBehindOutput = !RootTable.ID.equals(this.extent.tableId())
+          && !MetadataTable.ID.equals(this.extent.tableId())
+          && ((isMinC && acuTableConf.getBoolean(Property.TABLE_MINC_OUTPUT_DROP_CACHE))
+              || (!isMinC && acuTableConf.getBoolean(Property.TABLE_MAJC_OUTPUT_DROP_CACHE)));
+
+      WriterBuilder outBuilder = fileFactory.newWriterBuilder()
           .forFile(outputFile.getMetaInsert(), ns, ns.getConf(), cryptoService)
-          .withTableConfiguration(acuTableConf).withRateLimiter(env.getWriteLimiter()).build();
+          .withTableConfiguration(acuTableConf).withRateLimiter(env.getWriteLimiter());
+      if (dropCacheBehindOutput) {
+        outBuilder.dropCachesBehind();
+      }
+      mfw = outBuilder.build();
 
       Map<String,Set<ByteSequence>> lGroups = getLocalityGroups(acuTableConf);
 
@@ -277,9 +294,11 @@ public class FileCompactor implements Callable<CompactionStats> {
           try {
             mfw.close();
           } finally {
-            if (!fs.deleteRecursively(outputFile.getPath()))
-              if (fs.exists(outputFile.getPath()))
+            if (!fs.deleteRecursively(outputFile.getPath())) {
+              if (fs.exists(outputFile.getPath())) {
                 log.error("Unable to delete {}", outputFile);
+              }
+            }
           }
         }
       } catch (IOException | RuntimeException e) {
@@ -344,8 +363,9 @@ public class FileCompactor implements Callable<CompactionStats> {
 
         readers.clear();
 
-        if (e instanceof IOException)
+        if (e instanceof IOException) {
           throw (IOException) e;
+        }
         throw new IOException("Failed to open map data files", e);
       }
     }
@@ -371,8 +391,6 @@ public class FileCompactor implements Callable<CompactionStats> {
       SortedKeyValueIterator<Key,Value> delIter =
           DeletingIterator.wrap(citr, propagateDeletes, DeletingIterator.getBehavior(acuTableConf));
       ColumnFamilySkippingIterator cfsi = new ColumnFamilySkippingIterator(delIter);
-
-      // if(env.getIteratorScope() )
 
       SystemIteratorEnvironment iterEnv =
           env.createIteratorEnv(context, acuTableConf, getExtent().tableId());

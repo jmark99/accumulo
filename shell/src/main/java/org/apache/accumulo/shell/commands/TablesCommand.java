@@ -64,6 +64,7 @@ public class TablesCommand extends Command {
     Iterator<String> it = Iterators.transform(tables.entrySet().iterator(), entry -> {
       String tableName = String.valueOf(sortByTableId ? entry.getValue() : entry.getKey());
       String tableId = String.valueOf(sortByTableId ? entry.getKey() : entry.getValue());
+
       String output = String.format("%-20s", tableName);
 
       if (namespace != null) {

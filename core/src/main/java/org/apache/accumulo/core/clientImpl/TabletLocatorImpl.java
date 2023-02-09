@@ -18,9 +18,9 @@
  */
 package org.apache.accumulo.core.clientImpl;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,12 +67,15 @@ public class TabletLocatorImpl extends TabletLocator {
   static final Text MAX_TEXT = new Text();
 
   static final Comparator<Text> END_ROW_COMPARATOR = (o1, o2) -> {
-    if (o1 == o2)
+    if (o1 == o2) {
       return 0;
-    if (o1 == MAX_TEXT)
+    }
+    if (o1 == MAX_TEXT) {
       return 1;
-    if (o2 == MAX_TEXT)
+    }
+    if (o2 == MAX_TEXT) {
       return -1;
+    }
     return o1.compareTo(o2);
   };
 
@@ -80,11 +83,11 @@ public class TabletLocatorImpl extends TabletLocator {
   protected TabletLocator parent;
   protected TreeMap<Text,TabletLocation> metaCache = new TreeMap<>(END_ROW_COMPARATOR);
   protected TabletLocationObtainer locationObtainer;
-  private TabletServerLockChecker lockChecker;
+  private final TabletServerLockChecker lockChecker;
   protected Text lastTabletRow;
 
-  private TreeSet<KeyExtent> badExtents = new TreeSet<>();
-  private ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+  private final TreeSet<KeyExtent> badExtents = new TreeSet<>();
+  private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
   private final Lock rLock = rwLock.readLock();
   private final Lock wLock = rwLock.writeLock();
 
@@ -108,8 +111,8 @@ public class TabletLocatorImpl extends TabletLocator {
 
   private class LockCheckerSession {
 
-    private HashSet<Pair<String,String>> okLocks = new HashSet<>();
-    private HashSet<Pair<String,String>> invalidLocks = new HashSet<>();
+    private final HashSet<Pair<String,String>> okLocks = new HashSet<>();
+    private final HashSet<Pair<String,String>> invalidLocks = new HashSet<>();
 
     private TabletLocation checkLock(TabletLocation tl) {
       // the goal of this class is to minimize calls out to lockChecker under that assumption that
@@ -118,25 +121,29 @@ public class TabletLocatorImpl extends TabletLocator {
       // decisions from the lockChecker in thread local unsynchronized
       // memory
 
-      if (tl == null)
+      if (tl == null) {
         return null;
+      }
 
       Pair<String,String> lock = new Pair<>(tl.tablet_location, tl.tablet_session);
 
-      if (okLocks.contains(lock))
+      if (okLocks.contains(lock)) {
         return tl;
+      }
 
-      if (invalidLocks.contains(lock))
+      if (invalidLocks.contains(lock)) {
         return null;
+      }
 
       if (lockChecker.isLockHeld(tl.tablet_location, tl.tablet_session)) {
         okLocks.add(lock);
         return tl;
       }
 
-      if (log.isTraceEnabled())
+      if (log.isTraceEnabled()) {
         log.trace("Tablet server {} {} no longer holds its lock", tl.tablet_location,
             tl.tablet_session);
+      }
 
       invalidLocks.add(lock);
 
@@ -188,8 +195,9 @@ public class TabletLocatorImpl extends TabletLocator {
       for (T mutation : mutations) {
         row.set(mutation.getRow());
         TabletLocation tl = locateTabletInCache(row);
-        if (tl == null || !addMutation(binnedMutations, mutation, tl, lcSession))
+        if (tl == null || !addMutation(binnedMutations, mutation, tl, lcSession)) {
           notInCache.add(mutation);
+        }
       }
     } finally {
       rLock.unlock();
@@ -258,6 +266,24 @@ public class TabletLocatorImpl extends TabletLocator {
     return false;
   }
 
+  static boolean isContiguous(List<TabletLocation> tabletLocations) {
+
+    Iterator<TabletLocation> iter = tabletLocations.iterator();
+    KeyExtent prevExtent = iter.next().tablet_extent;
+
+    while (iter.hasNext()) {
+      KeyExtent currExtent = iter.next().tablet_extent;
+
+      if (!currExtent.isPreviousExtent(prevExtent)) {
+        return false;
+      }
+
+      prevExtent = currExtent;
+    }
+
+    return true;
+  }
+
   private List<Range> binRanges(ClientContext context, List<Range> ranges,
       Map<String,Map<KeyExtent,List<Range>>> binnedRanges, boolean useCache,
       LockCheckerSession lcSession)
@@ -275,20 +301,23 @@ public class TabletLocatorImpl extends TabletLocator {
 
       if (range.getStartKey() != null) {
         startRow = range.getStartKey().getRow();
-      } else
+      } else {
         startRow = new Text();
+      }
 
       TabletLocation tl = null;
 
-      if (useCache)
+      if (useCache) {
         tl = lcSession.checkLock(locateTabletInCache(startRow));
-      else if (!lookupFailed)
+      } else if (!lookupFailed) {
         tl = _locateTablet(context, startRow, false, false, false, lcSession);
+      }
 
       if (tl == null) {
         failures.add(range);
-        if (!useCache)
+        if (!useCache) {
           lookupFailed = true;
+        }
         continue;
       }
 
@@ -306,15 +335,27 @@ public class TabletLocatorImpl extends TabletLocator {
 
         if (tl == null) {
           failures.add(range);
-          if (!useCache)
+          if (!useCache) {
             lookupFailed = true;
+          }
           continue l1;
         }
         tabletLocations.add(tl);
       }
 
-      for (TabletLocation tl2 : tabletLocations) {
-        TabletLocatorImpl.addRange(binnedRanges, tl2.tablet_location, tl2.tablet_extent, range);
+      // Ensure the extents found are non overlapping and have no holes. When reading some extents
+      // from the cache and other from the metadata table in the loop above we may end up with
+      // non-contiguous extents. This can happen when a subset of exents are placed in the cache and
+      // then after that merges and splits happen.
+      if (isContiguous(tabletLocations)) {
+        for (TabletLocation tl2 : tabletLocations) {
+          TabletLocatorImpl.addRange(binnedRanges, tl2.tablet_location, tl2.tablet_extent, range);
+        }
+      } else {
+        failures.add(range);
+        if (!useCache) {
+          lookupFailed = true;
+        }
       }
 
     }
@@ -388,8 +429,9 @@ public class TabletLocatorImpl extends TabletLocator {
     } finally {
       wLock.unlock();
     }
-    if (log.isTraceEnabled())
+    if (log.isTraceEnabled()) {
       log.trace("Invalidated extent={}", failedExtent);
+    }
   }
 
   @Override
@@ -400,8 +442,9 @@ public class TabletLocatorImpl extends TabletLocator {
     } finally {
       wLock.unlock();
     }
-    if (log.isTraceEnabled())
+    if (log.isTraceEnabled()) {
       log.trace("Invalidated {} cache entries for table {}", keySet.size(), tableId);
+    }
   }
 
   @Override
@@ -410,20 +453,22 @@ public class TabletLocatorImpl extends TabletLocator {
 
     wLock.lock();
     try {
-      for (TabletLocation cacheEntry : metaCache.values())
+      for (TabletLocation cacheEntry : metaCache.values()) {
         if (cacheEntry.tablet_location.equals(server)) {
           badExtents.add(cacheEntry.tablet_extent);
           invalidatedCount++;
         }
+      }
     } finally {
       wLock.unlock();
     }
 
     lockChecker.invalidateCache(server);
 
-    if (log.isTraceEnabled())
+    if (log.isTraceEnabled()) {
       log.trace("invalidated {} cache entries  table={} server={}", invalidatedCount, tableId,
           server);
+    }
 
   }
 
@@ -437,8 +482,9 @@ public class TabletLocatorImpl extends TabletLocator {
     } finally {
       wLock.unlock();
     }
-    if (log.isTraceEnabled())
+    if (log.isTraceEnabled()) {
       log.trace("invalidated all {} cache entries for table={}", invalidatedCount, tableId);
+    }
   }
 
   @Override
@@ -460,9 +506,10 @@ public class TabletLocatorImpl extends TabletLocator {
 
       if (retry && tl == null) {
         sleepUninterruptibly(100, MILLISECONDS);
-        if (log.isTraceEnabled())
+        if (log.isTraceEnabled()) {
           log.trace("Failed to locate tablet containing row {} in table {}, will retry...",
               TextUtil.truncate(row), tableId);
+        }
         continue;
       }
 
@@ -495,18 +542,20 @@ public class TabletLocatorImpl extends TabletLocator {
         if (er != null && er.compareTo(lastTabletRow) < 0) {
           // System.out.println("er "+er+" ltr "+lastTabletRow);
           ptl = parent.locateTablet(context, er, true, retry);
-          if (ptl != null)
+          if (ptl != null) {
             locations =
                 locationObtainer.lookupTablet(context, ptl, metadataRow, lastTabletRow, parent);
-          else
+          } else {
             break;
+          }
         } else {
           break;
         }
       }
 
-      if (locations == null)
+      if (locations == null) {
         return;
+      }
 
       // cannot assume the list contains contiguous key extents... so it is probably
       // best to deal with each extent individually
@@ -552,21 +601,24 @@ public class TabletLocatorImpl extends TabletLocator {
     removeOverlapping(metaCache, tabletLocation.tablet_extent);
 
     // do not add to cache unless lock is held
-    if (lcSession.checkLock(tabletLocation) == null)
+    if (lcSession.checkLock(tabletLocation) == null) {
       return;
+    }
 
     // add it to cache
     Text er = tabletLocation.tablet_extent.endRow();
-    if (er == null)
+    if (er == null) {
       er = MAX_TEXT;
+    }
     metaCache.put(er, tabletLocation);
 
-    if (!badExtents.isEmpty())
+    if (!badExtents.isEmpty()) {
       removeOverlapping(badExtents, tabletLocation.tablet_extent);
+    }
   }
 
   static void removeOverlapping(TreeMap<Text,TabletLocation> metaCache, KeyExtent nke) {
-    Iterator<Entry<Text,TabletLocation>> iter = null;
+    Iterator<Entry<Text,TabletLocation>> iter;
 
     if (nke.prevEndRow() == null) {
       iter = metaCache.entrySet().iterator();
@@ -677,16 +729,18 @@ public class TabletLocatorImpl extends TabletLocator {
   private void processInvalidated(ClientContext context, LockCheckerSession lcSession)
       throws AccumuloSecurityException, AccumuloException, TableNotFoundException {
 
-    if (badExtents.isEmpty())
+    if (badExtents.isEmpty()) {
       return;
+    }
 
     final boolean writeLockHeld = rwLock.isWriteLockedByCurrentThread();
     try {
       if (!writeLockHeld) {
         rLock.unlock();
         wLock.lock();
-        if (badExtents.isEmpty())
+        if (badExtents.isEmpty()) {
           return;
+        }
       }
 
       List<Range> lookups = new ArrayList<>(badExtents.size());

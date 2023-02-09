@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 
 import org.apache.accumulo.core.spi.crypto.CryptoServiceFactory;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,26 +43,26 @@ public class ConfigCheckUtil {
    * correctly for their property types. A valid configuration also contains a value for property
    * {@link Property#INSTANCE_ZK_TIMEOUT} within a valid range.
    *
-   * @param entries
-   *          iterable through configuration keys and values
-   * @throws ConfigCheckException
-   *           if a fatal configuration error is found
+   * @param entries iterable through configuration keys and values
+   * @param source the namespace, table id, site or system config where for diagnostic messages
+   * @throws ConfigCheckException if a fatal configuration error is found
    */
-  public static void validate(Iterable<Entry<String,String>> entries) {
+  public static void validate(Iterable<Entry<String,String>> entries, @NonNull String source) {
     String instanceZkTimeoutValue = null;
     for (Entry<String,String> entry : entries) {
       String key = entry.getKey();
       String value = entry.getValue();
       Property prop = Property.getPropertyByKey(entry.getKey());
-      if (prop == null && Property.isValidPropertyKey(key))
+      if (prop == null && Property.isValidPropertyKey(key)) {
         continue; // unknown valid property (i.e. has proper prefix)
-      else if (prop == null)
-        log.warn(PREFIX + "unrecognized property key (" + key + ")");
-      else if (prop.getType() == PropertyType.PREFIX)
-        fatal(PREFIX + "incomplete property key (" + key + ")");
-      else if (!prop.getType().isValidFormat(value))
+      } else if (prop == null) {
+        log.warn(PREFIX + "unrecognized property key ({}) for {}", key, source);
+      } else if (prop.getType() == PropertyType.PREFIX) {
+        fatal(PREFIX + "incomplete property key (" + key + ") for " + source);
+      } else if (!prop.getType().isValidFormat(value)) {
         fatal(PREFIX + "improperly formatted value for key (" + key + ", type=" + prop.getType()
-            + ") : " + value);
+            + ") : " + value + " for " + source);
+      }
 
       if (key.equals(Property.INSTANCE_ZK_TIMEOUT.getKey())) {
         instanceZkTimeoutValue = value;
@@ -115,18 +116,21 @@ public class ConfigCheckUtil {
 
   private static void checkTimeDuration(Property prop, String value, CheckTimeDuration chk) {
     verifyPropertyTypes(PropertyType.TIMEDURATION, prop);
-    if (!chk.check(ConfigurationTypeHelper.getTimeInMillis(value)))
+    if (!chk.check(ConfigurationTypeHelper.getTimeInMillis(value))) {
       fatal(PREFIX + chk.getDescription(prop));
+    }
   }
 
   private static void verifyPropertyTypes(PropertyType type, Property... properties) {
-    for (Property prop : properties)
-      if (prop.getType() != type)
+    for (Property prop : properties) {
+      if (prop.getType() != type) {
         fatal("Unexpected property type (" + prop.getType() + " != " + type + ")");
+      }
+    }
   }
 
   /**
-   * The exception thrown when {@link ConfigCheckUtil#validate(Iterable)} fails.
+   * The exception thrown when {@link ConfigCheckUtil#validate(Iterable, String)} fails.
    */
   public static class ConfigCheckException extends RuntimeException {
     private static final long serialVersionUID = 1L;
@@ -149,12 +153,9 @@ public class ConfigCheckUtil {
   /**
    * Verifies a configured option is a legal class and has a required base class.
    *
-   * @param confOption
-   *          The Property key name
-   * @param className
-   *          The Property value, the string representation of a class to be loaded
-   * @param requiredBaseClass
-   *          The base class required for the className
+   * @param confOption The Property key name
+   * @param className The Property value, the string representation of a class to be loaded
+   * @param requiredBaseClass The base class required for the className
    */
   private static void verifyValidClassName(String confOption, String className,
       Class<?> requiredBaseClass) {
