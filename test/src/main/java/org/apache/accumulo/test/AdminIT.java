@@ -64,6 +64,8 @@ public class AdminIT extends ConfigurableMacBase {
 
   private static final Logger log = LoggerFactory.getLogger(AdminIT.class);
 
+  private MiniAccumuloClusterImpl cluster;
+
   @Override
   protected Duration defaultTimeout() {
     log.info("set DefaultTimeout...");
@@ -75,8 +77,6 @@ public class AdminIT extends ConfigurableMacBase {
     log.info("configure...");
     cfg.setSiteConfig(Collections.singletonMap(Property.TABLE_FILE_BLOCK_SIZE.getKey(), "1234567"));
   }
-
-  // private static String rootPath;
 
   @TempDir
   private static File tempDir;
@@ -112,7 +112,7 @@ public class AdminIT extends ConfigurableMacBase {
   @Test
   public void testUsage() throws IOException, InterruptedException {
     log.info("testing usage...");
-    MiniAccumuloClusterImpl.ProcessInfo p = getCluster().exec(Admin.class);
+    var p = getCluster().exec(Admin.class);
     assertEquals(0, p.getProcess().waitFor());
     var result = p.readStdOut();
     assertTrue(result.contains("Usage: accumulo admin [options]"),
@@ -143,63 +143,94 @@ public class AdminIT extends ConfigurableMacBase {
     assertTrue(result.contains("MissingCommandException"), "Expected to see Usage error");
   }
 
-  /**
-   *
-   * Usage: accumulo admin [options] [command] [command options] Options: -auths, --auths the
-   * authorizations to use when reading or writing Default: 'empty string' -c, --config-file Read
-   * the given client config file. If omitted, the classpath will be searched for file named
-   * accumulo-client.properties -f, --force force the given server to stop by removing its lock
-   * Default: false -h, -?, --help, -help
-   *
-   * --password connection password (can be specified as '<password>', 'pass:<password>',
-   * 'file:<local file containing the password>' or 'env:<variable containing the pass>') --trace
-   * turn on distributed tracing Default: false -u, --user Connection user -o Overrides property in
-   * accumulo-client.properties. Expected format: -o <key>=<value> Default: []
-   */
+  // Usage: accumulo admin [options] [command] [command options]
+  // Options:
+  // -auths, --auths
+  // the authorizations to use when reading or writing
+  // Default: 'empty string'
+  // -c, --config-file
+  // Read the given client config file. If omitted, the classpath will be
+  // searched for file named accumulo-client.properties
+  // -f, --force
+  // force the given server to stop by removing its lock
+  // Default: false
+  // -h, -?, --help, -help
+  // --password
+  // connection password (can be specified as '<password>',
+  // 'pass:<password>', 'file:<local file containing the password>' or
+  // 'env:<variable containing the pass>')
+  // --trace
+  // turn on distributed tracing
+  // Default: false
+  // -u, --user
+  // Connection user -o Overrides property in accumulo-client.properties. Expected format: -o
+  // <key>=<value>
+  // Default: []
+
   @Test
   public void testAdminOptions() {
     log.info("testAdminOptions...");
   }
 
-  /**
-   * changeSecret Changes the unique secret given to the instance that all servers must know. Usage:
-   * changeSecret
-   */
+  // changeSecret
+  // Changes the unique secret given to the instance that all servers must know.
+  // Usage: changeSecret
   @Test
   public void testChangeSecret() {
     log.info("testChangeSecret...");
   }
 
-  /**
-   * checkTablets print tablets that are offline in online tables Usage: checkTablets [options]
-   * Options: --fixFiles Remove dangling file pointers Default: false -t, --table Table to check, if
-   * not set checks all tables
-   */
+  // checkTablets
+  // print tablets that are offline in online tables
+  // Usage: checkTablets [options]
+  // Options:
+  // --fixFiles
+  // Remove dangling file pointers
+  // Default: false -t,
+  // --table Table to check, if not set checks all tables
   @Test
   public void testCheckTablets() {
     log.info("testCheckTablets...");
   }
 
-  /**
-   * deleteZooInstance Deletes specific instance name or id from zookeeper or cleans up all old
-   * instances. Usage: deleteZooInstance [options] Options: -c, --clean Cleans Zookeeper by deleting
-   * all old instances. This will not delete the instance pointed to by the local
-   * accumulo.properties file Default: false -i, --instance the instance name or id to delete
-   * --password The system secret, if different than instance.secret in accumulo.properties
-   */
+  // deleteZooInstance
+  // Deletes specific instance name or id from zookeeper or cleans up all old instances.
+  // Usage: deleteZooInstance [options]
+  // Options:
+  // -c, --clean
+  // Cleans Zookeeper by deleting all old instances. This will not
+  // delete the instance pointed to by the local accumulo.properties file
+  // Default: false
+  // -i, --instance
+  // the instance name or id to delete
+  // --password
+  // The system secret, if different from instance.secret in accumulo.properties
   @Test
   public void testDeleteZooInstance() {
     log.info("testDeleteZooInstance...");
   }
 
-  /**
-   * dumpConfig print out non-default configuration settings Usage: dumpConfig [options] Options:
-   * -a, --all print the system and all table configurations Default: false -d, --directory
-   * directory to place config files -n, --namespaces print the namespace configuration Default:
-   * false -s, --system print the system configuration Default: false -t, --tables print per-table
-   * configuration Default: [] -u, --users print users and their authorizations and permissions
-   * Default: false
-   */
+  // dumpConfig
+  // print out non-default configuration settings
+  // Usage: dumpConfig [options]
+  // Options:
+  // -a, --all
+  // print the system and all table configurations
+  // Default: false
+  // -d, --directory
+  // directory to place config files
+  // -n, --namespaces
+  // print the namespace configuration
+  // Default: false
+  // -s, --system
+  // print the system configuration
+  // Default: false
+  // -t, --tables
+  // print per-table configuration
+  // Default: []
+  // -u, --users
+  // print users and their authorizations and permissions
+  // Default: false
   @Test
   public void testDumpConfig() throws Exception {
     log.info("testDumpConfig...");
@@ -222,18 +253,34 @@ public class AdminIT extends ConfigurableMacBase {
     assertFalse(systemPerm.contains("grant Table.DROP -t " + MetadataTable.NAME + " -u root"));
   }
 
-  /**
-   * fate Operations performed on the Manager FaTE system. Usage: fate [options] [<txId>...]
-   * Options: -c, --cancel <txId>... Cancel new or submitted FaTE transactions Default: false -d,
-   * --delete <txId>... Delete locks associated with transactions (Requires Manager to be down)
-   * Default: false -f, --fail <txId>... Transition FaTE transaction status to FAILED_IN_PROGRESS
-   * (requires Manager to be down) Default: false -j, --json Print transactions in json Default:
-   * false -p, --print, -print, -l, --list, -list [<txId>...] Print information about FaTE
-   * transactions. Print only the 'txId's specified or print all transactions if empty. Use -s to
-   * only print certain states. Default: false -s, --state 'state'... Print transactions in the
-   * state(s) {NEW, IN_PROGRESS, FAILED_IN_PROGRESS, FAILED, SUCCESSFUL} Default: [] --summary Print
-   * a summary of all FaTE transactions Default: false
-   */
+  // fate
+  // Operations performed on the Manager FaTE system.
+  // Usage: fate [options] [<txId>...]
+  // Options:
+  // -c, --cancel
+  // <txId>... Cancel new or submitted FaTE transactions
+  // Default: false -d,
+  // --delete <txId>... Delete locks associated with transactions (Requires Manager to be down)
+  // Default: false
+  // -f, --fail
+  // <txId>... Transition FaTE transaction status to FAILED_IN_PROGRESS
+  // (requires Manager to be down)
+  // Default: false
+  // -j, --json
+  // Print transactions in json
+  // Default: false
+  // -p, --print, -print, -l, --list, -list
+  // [<txId>...] Print information about FaTE transactions. Print only
+  // the 'txId's specified or print all transactions if empty. Use -s
+  // to only print certain states.
+  // Default: false
+  // -s, --state
+  // <state>... Print transactions in the state(s) {NEW, IN_PROGRESS,
+  // FAILED_IN_PROGRESS, FAILED, SUCCESSFUL}
+  // Default: []
+  // --summary
+  // Print a summary of all FaTE transactions
+  // Default: false
   @Test
   public void testFateSummaryCommandWithSlowCompaction() throws Exception {
     log.info("testFateSummaryCommanWithSlowCompaction...");
@@ -327,101 +374,138 @@ public class AdminIT extends ConfigurableMacBase {
     }
   }
 
-  /**
-   * listInstances list Accumulo instances in zookeeper Usage: listInstances [options] Options:
-   * --print-all print information for all instances, not just those with names Default: false
-   * --print-errors display errors while listing instances Default: false
-   */
+  // listInstances
+  // list Accumulo instances in zookeeper
+  // Usage: listInstances [options]
+  // Options:
+  // --print-all
+  // print information for all instances, not just those with names
+  // Default: false
+  // --print-errors
+  // display errors while listing instances
+  // Default: false
   @Test
   public void testListInstances() {
     log.info("testListInstances...");
   }
 
-  /**
-   * locks List or delete Tablet Server locks. Default with no arguments is to list the locks.
-   * Usage: locks [options] Options: -delete specify a tablet server lock to delete
-   */
+  // locks
+  // List or delete Tablet Server locks. Default with no arguments
+  // is to list the locks.
+  // Usage: locks [options]
+  // Options: -delete specify a tablet server lock to delete
   @Test
   public void testLocks() {
     log.info("testLocks...");
   }
 
-  /**
-   * ping Ping tablet servers. If no arguments, pings all. Usage: ping {'host' ... }
-   */
+  // ping
+  // Ping tablet servers. If no arguments, pings all.
+  // Usage: ping {'host' ... }
   @Test
-  public void testPing() {
+  public void testPing() throws IOException, InterruptedException {
     log.info("testPing...");
+    // var p = getCluster().exec(Admin.class, "ping", "1.1.1.1");
+    var result = execSuccess("ping devlap:18045");
+    log.info(result);
+
   }
 
-  /**
-   * restoreZoo Restore Zookeeper data from a file. Usage: restoreZoo [options] Options: --file
-   * --overwrite Default: false
-   */
+  // restoreZoo
+  // Restore Zookeeper data from a file.
+  // Usage: restoreZoo [options]
+  // Options:
+  // --file
+  // --overwrite
+  // Default: false
   @Test
   public void testRestoreZoo() {
     log.info("testRestoreZoo...");
   }
 
-  /**
-   * randomizeVolumes Randomizing tablet directories is deprecated and now does nothing. Accumulo
-   * now always calls the volume chooser for each file created by a tablet, so its no longer
-   * necessary. Usage: randomizeVolumes [options] Options: -t table to update
-   */
+  // randomizeVolumes
+  // Randomizing tablet directories is deprecated and now
+  // does nothing. Accumulo now always calls the volume chooser for
+  // each file created by a tablet, so its no longer necessary.
+  // Usage: randomizeVolumes [options]
+  // Options: -t table to update
   @Test
   public void testRandomizeVolumes() {
     log.info("testRandomizeVolumes...");
   }
 
-  /**
-   * stop stop the tablet server on the given hosts Usage: stop 'host' {<host> ... }
-   */
+  // stop
+  // stop the tablet server on the given hosts
+  // Usage: stop 'host' {<host> ... }
   @Test
   public void testStop() {
     log.info("testStop...");
   }
 
-  /**
-   * stopAll stop all tablet servers and the manager Usage: stopAll
-   */
+  // stopAll
+  // stop all tablet servers and the manager
+  // Usage: stopAll
   @Test
   public void testStopAll() {
     log.info("testStopAll...");
   }
 
-  /**
-   * stopManager stop the manager Usage: stopManager
-   */
+  // stopManager
+  // stop the manager
+  // Usage: stopManager
   @Test
   public void testStopManager() {
     log.info("testStopManager...");
   }
 
-  /**
-   * stopMaster stop the master (DEPRECATED -- use stopManager instead) Usage: stopMaster
-   */
+  // stopMaster
+  // stop the master (DEPRECATED -- use stopManager instead)
+  // Usage: stopMaster
   @Test
   public void testStopMaster() {
     log.info("testStopMaster...");
   }
 
-  /**
-   * verifyTabletAssigns Verify all Tablets are assigned to tablet servers Usage:
-   * verifyTabletAssigns [options] Options: -v, --verbose verbose mode (prints locations of tablets)
-   * Default: false
-   */
+  // verifyTabletAssigns
+  // Verify all Tablets are assigned to tablet servers
+  // Usage: verifyTabletAssigns [options]
+  // Options: -v, --verbose
+  // verbose mode (prints locations of tablets)
+  // Default: false
   @Test
   public void testVerifyAssigns() {
     log.info("testVerifyAssigns...");
   }
 
-  /**
+  /*
    * volumes Accumulo volume utility Usage: volumes [options] Options: -l, --list list volumes
    * currently in use Default: false
    */
   @Test
-  public void testVolumes() {
+  public void testVolumes() throws IOException, InterruptedException {
+    // -l --list does not appear to do anything
     log.info("testVolumes...");
+    var p = getCluster().exec(Admin.class, "volumes");
+    assertNotEquals(0, p.getProcess().waitFor());
+    String result = p.readStdOut();
+    log.info(result);
+    assertTrue(result.contains("referenced in ROOT tablets section"));
+    assertTrue(result.contains("referenced in METADATA tablets section"));
+    assertTrue(result.contains("referenced in USER tablets section"));
+    assertTrue(result.contains(
+        "accumulo/test/target/mini-tests/org.apache.accumulo.test.AdminIT_testVolumes/accumulo"));
+  }
+
+  private String execSuccess(String ping) throws IOException, InterruptedException {
+    var p = getCluster().exec(Admin.class, ping);
+    assertEquals(0, p.getProcess().waitFor());
+    return p.readStdOut();
+  }
+
+  private String execFailure() throws IOException, InterruptedException {
+    var p = getCluster().exec(Admin.class);
+    assertNotEquals(0, p.getProcess().waitFor());
+    return p.readStdOut();
   }
 
 }
