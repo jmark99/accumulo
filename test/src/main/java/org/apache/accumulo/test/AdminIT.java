@@ -32,10 +32,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
@@ -55,6 +60,7 @@ import org.apache.accumulo.test.functional.SlowIterator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,8 +69,6 @@ import org.slf4j.LoggerFactory;
 public class AdminIT extends ConfigurableMacBase {
 
   private static final Logger log = LoggerFactory.getLogger(AdminIT.class);
-
-  private MiniAccumuloClusterImpl cluster;
 
   @Override
   protected Duration defaultTimeout() {
@@ -75,6 +79,7 @@ public class AdminIT extends ConfigurableMacBase {
   @Override
   public void configure(MiniAccumuloConfigImpl cfg, Configuration hadoopCoreSite) {
     log.info("configure...");
+    cfg.setNumTservers(2);
     cfg.setSiteConfig(Collections.singletonMap(Property.TABLE_FILE_BLOCK_SIZE.getKey(), "1234567"));
   }
 
@@ -403,11 +408,81 @@ public class AdminIT extends ConfigurableMacBase {
   // Ping tablet servers. If no arguments, pings all.
   // Usage: ping {'host' ... }
   @Test
-  public void testPing() throws IOException, InterruptedException {
+  @Timeout(60000)
+  public void testPing() throws IOException, InterruptedException, ExecutionException {
     log.info("testPing...");
-    // var p = getCluster().exec(Admin.class, "ping", "1.1.1.1");
-    var result = execSuccess("ping devlap:18045");
-    log.info(result);
+    // check 'ping' with no provided hosts
+    List<String> tservers = getCluster().getServerContext().instanceOperations().getTabletServers();
+    var pingAll = execSuccess("ping");
+    tservers.forEach(tserver -> {
+      assertTrue(pingAll.contains(tserver + " OK"));
+    });
+    assertTrue(pingAll.contains("0 of 2 tablet servers unreachable"));
+
+    // check 'ping' with single hosts provided
+    tservers.forEach(tserver -> {
+      try {
+        var pingServer = execSuccess("ping", tserver);
+        assertTrue(pingServer.contains(tserver + " OK"));
+        assertTrue(pingServer.contains("0 of 1 tablet servers unreachable"));
+      } catch (IOException | InterruptedException e) {}
+    });
+
+    // check 'ping' with various misconfigured address:port scenarios
+    var pingNoPortInfo = execFailure("ping", "1.2.3.4");
+    assertTrue(pingNoPortInfo.contains("Address was expected to contain port"));
+
+    var pingNoPortInfo2 = execFailure("ping", "1.2.1.2:");
+    assertTrue(pingNoPortInfo2.contains("Address was expected to contain port"));
+
+    var pingUnparseablePort = execFailure("ping", ":nonnumericport");
+    assertTrue(pingUnparseablePort.contains("Unparseable port number"));
+
+    var pingPortOnly2 = execFailure("ping", ":1234");
+    assertTrue(pingPortOnly2.contains("FAILED"));
+    assertTrue(pingPortOnly2.contains("1 of 1 tablet servers unreachable"));
+  }
+
+  @Test
+  public void testPingWithBadServer() throws ExecutionException, InterruptedException {
+    log.info(">>>> testPing2");
+    // CompletableFuture.supplyAsync(() -> {
+    // try {
+    // var p = getCluster().exec(Admin.class, "ping", "1.1.1.1:9999");
+    // p.getProcess().waitFor();
+    // var result = p.readStdOut();
+    // } catch (InterruptedException | IOException e) {
+    // log.info(">>>>> EXCEPTIONS");
+    // }
+    // log.info(">>>> reached null");
+    // return null;
+    // }).orTimeout(60000, TimeUnit.SECONDS).handle((result, throwable) -> {
+    // if (!(throwable instanceof TimeoutException)) {
+    // log.info(">>>> Expected TimeoutException thrown");
+    // }
+    // log.info(">>>> result: {}", result);
+    // return result;
+    // }).get();
+
+    CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> "");
+
+    CompletableFuture<Void> future = completableFuture.thenRun(() -> {
+      try {
+        var p = getCluster().exec(Admin.class, "ping", "1.1.1.1:9999");
+        p.getProcess().waitFor();
+        var result = p.readStdOut();
+      } catch (InterruptedException | IOException e) {
+        log.info(">>>>> EXCEPTIONS");
+      }
+      log.info(">>>> reached null");
+    }).orTimeout(60000, TimeUnit.SECONDS).handle((result, throwable) -> {
+      if (!(throwable instanceof TimeoutException)) {
+        log.info(">>>> Expected TimeoutException thrown");
+      }
+      return null;
+    });
+
+    future.get();
 
   }
 
@@ -496,14 +571,14 @@ public class AdminIT extends ConfigurableMacBase {
         "accumulo/test/target/mini-tests/org.apache.accumulo.test.AdminIT_testVolumes/accumulo"));
   }
 
-  private String execSuccess(String ping) throws IOException, InterruptedException {
-    var p = getCluster().exec(Admin.class, ping);
+  private String execSuccess(String... args) throws IOException, InterruptedException {
+    var p = getCluster().exec(Admin.class, args);
     assertEquals(0, p.getProcess().waitFor());
     return p.readStdOut();
   }
 
-  private String execFailure() throws IOException, InterruptedException {
-    var p = getCluster().exec(Admin.class);
+  private String execFailure(String... args) throws IOException, InterruptedException {
+    var p = getCluster().exec(Admin.class, args);
     assertNotEquals(0, p.getProcess().waitFor());
     return p.readStdOut();
   }
