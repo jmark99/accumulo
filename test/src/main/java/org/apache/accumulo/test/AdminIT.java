@@ -60,7 +60,6 @@ import org.apache.accumulo.test.functional.SlowIterator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,12 +72,11 @@ public class AdminIT extends ConfigurableMacBase {
   @Override
   protected Duration defaultTimeout() {
     log.info("set DefaultTimeout...");
-    return Duration.ofMinutes(2);
+    return Duration.ofMinutes(3);
   }
 
   @Override
   public void configure(MiniAccumuloConfigImpl cfg, Configuration hadoopCoreSite) {
-    log.info("configure...");
     cfg.setNumTservers(2);
     cfg.setSiteConfig(Collections.singletonMap(Property.TABLE_FILE_BLOCK_SIZE.getKey(), "1234567"));
   }
@@ -408,7 +406,6 @@ public class AdminIT extends ConfigurableMacBase {
   // Ping tablet servers. If no arguments, pings all.
   // Usage: ping {'host' ... }
   @Test
-  @Timeout(60000)
   public void testPing() throws IOException, InterruptedException, ExecutionException {
     log.info("testPing...");
     // check 'ping' with no provided hosts
@@ -425,7 +422,7 @@ public class AdminIT extends ConfigurableMacBase {
         var pingServer = execSuccess("ping", tserver);
         assertTrue(pingServer.contains(tserver + " OK"));
         assertTrue(pingServer.contains("0 of 1 tablet servers unreachable"));
-      } catch (IOException | InterruptedException e) {}
+      } catch (IOException | InterruptedException ignored) {}
     });
 
     // check 'ping' with various misconfigured address:port scenarios
@@ -441,49 +438,38 @@ public class AdminIT extends ConfigurableMacBase {
     var pingPortOnly2 = execFailure("ping", ":1234");
     assertTrue(pingPortOnly2.contains("FAILED"));
     assertTrue(pingPortOnly2.contains("1 of 1 tablet servers unreachable"));
+
+    var pingBadServer = execFailure("ping", "localhost:1234");
+    assertTrue(pingBadServer.contains("FAILED"));
+    assertTrue(pingBadServer.contains("1 of 1 tablet servers unreachable"));
+    // Note that if you ping a non-existent server using an invalid IP address the ping command
+    // will time-out with a ConnectException in two minutes
+    long start = System.currentTimeMillis();
+    var pingBadServer2 = execFailure("ping", "1.2.3.4:1234");
+    long end = System.currentTimeMillis();
+    long diff = end - start;
+    log.info("time: {}", TimeUnit.MILLISECONDS.toSeconds(diff));
+    log.info("Ping bad server2: {}; {}", end, end / 1000);
+    assertTrue(pingBadServer2.contains("FAILED"));
+    assertTrue(pingBadServer2.contains("1 of 1 tablet servers unreachable"));
   }
 
   @Test
   public void testPingWithBadServer() throws ExecutionException, InterruptedException {
     log.info(">>>> testPing2");
-    // CompletableFuture.supplyAsync(() -> {
-    // try {
-    // var p = getCluster().exec(Admin.class, "ping", "1.1.1.1:9999");
-    // p.getProcess().waitFor();
-    // var result = p.readStdOut();
-    // } catch (InterruptedException | IOException e) {
-    // log.info(">>>>> EXCEPTIONS");
-    // }
-    // log.info(">>>> reached null");
-    // return null;
-    // }).orTimeout(60000, TimeUnit.SECONDS).handle((result, throwable) -> {
-    // if (!(throwable instanceof TimeoutException)) {
-    // log.info(">>>> Expected TimeoutException thrown");
-    // }
-    // log.info(">>>> result: {}", result);
-    // return result;
-    // }).get();
-
-    CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> "");
-
-    CompletableFuture<Void> future = completableFuture.thenRun(() -> {
+    CompletableFuture.supplyAsync(() -> {
       try {
-        var p = getCluster().exec(Admin.class, "ping", "1.1.1.1:9999");
+        var p = getCluster().exec(Admin.class, "ping", "1.2.3.4:1234");
         p.getProcess().waitFor();
         var result = p.readStdOut();
-      } catch (InterruptedException | IOException e) {
-        log.info(">>>>> EXCEPTIONS");
-      }
-      log.info(">>>> reached null");
+      } catch (InterruptedException | IOException ignored) {}
+      return null;
     }).orTimeout(60000, TimeUnit.SECONDS).handle((result, throwable) -> {
       if (!(throwable instanceof TimeoutException)) {
         log.info(">>>> Expected TimeoutException thrown");
       }
       return null;
-    });
-
-    future.get();
-
+    }).get();
   }
 
   // restoreZoo
