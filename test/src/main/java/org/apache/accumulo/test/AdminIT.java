@@ -41,7 +41,11 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
+import org.apache.accumulo.core.client.AccumuloException;
+import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.IteratorSetting;
+import org.apache.accumulo.core.client.TableExistsException;
+import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.admin.NewTableConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.iterators.IteratorUtil;
@@ -68,7 +72,6 @@ public class AdminIT extends ConfigurableMacBase {
 
   @Override
   protected Duration defaultTimeout() {
-    log.info("set DefaultTimeout...");
     return Duration.ofMinutes(3);
   }
 
@@ -508,8 +511,29 @@ public class AdminIT extends ConfigurableMacBase {
   // verbose mode (prints locations of tablets)
   // Default: false
   @Test
-  public void testVerifyAssigns() {
+  public void testVerifyAssigns() throws AccumuloException, TableExistsException,
+      AccumuloSecurityException, TableNotFoundException, IOException, InterruptedException {
     log.info("testVerifyAssigns...");
+    List<String> tservers = getCluster().getServerContext().instanceOperations().getTabletServers();
+    // if not, verbose, output will just list that it is checking all tables. So get a list of all
+    // tables and verify all of them are listed in command output.
+    SortedSet<String> tables = getCluster().getServerContext().tableOperations().list();
+    tservers.forEach(p -> log.info("TServer: {}", p));
+    tables.forEach(t -> log.info("Table: {}", t));
+
+    //String[] tableName = getUniqueNames(1);
+    //getCluster().getServerContext().tableOperations().create(tableName[0]);
+
+    var p = getCluster().exec(Admin.class, "verifyTabletAssigns");
+    var success = p.getProcess().waitFor();
+    log.info(">>>> success: {}", success);
+    // assertEquals(0, p.getProcess().waitFor());
+    var result = p.readStdOut();
+    log.info(">>>> result:\n{}", result);
+    tables.forEach(table -> {
+      assertTrue(result.contains("Checking table " + table));
+    });
+    //getCluster().getServerContext().tableOperations().delete(tableName[0]);
   }
 
   /*
