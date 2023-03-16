@@ -37,10 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
@@ -444,32 +441,9 @@ public class AdminIT extends ConfigurableMacBase {
     assertTrue(pingBadServer.contains("1 of 1 tablet servers unreachable"));
     // Note that if you ping a non-existent server using an invalid IP address the ping command
     // will time-out with a ConnectException in two minutes
-    long start = System.currentTimeMillis();
     var pingBadServer2 = execFailure("ping", "1.2.3.4:1234");
-    long end = System.currentTimeMillis();
-    long diff = end - start;
-    log.info("time: {}", TimeUnit.MILLISECONDS.toSeconds(diff));
-    log.info("Ping bad server2: {}; {}", end, end / 1000);
     assertTrue(pingBadServer2.contains("FAILED"));
     assertTrue(pingBadServer2.contains("1 of 1 tablet servers unreachable"));
-  }
-
-  @Test
-  public void testPingWithBadServer() throws ExecutionException, InterruptedException {
-    log.info(">>>> testPing2");
-    CompletableFuture.supplyAsync(() -> {
-      try {
-        var p = getCluster().exec(Admin.class, "ping", "1.2.3.4:1234");
-        p.getProcess().waitFor();
-        var result = p.readStdOut();
-      } catch (InterruptedException | IOException ignored) {}
-      return null;
-    }).orTimeout(60000, TimeUnit.SECONDS).handle((result, throwable) -> {
-      if (!(throwable instanceof TimeoutException)) {
-        log.info(">>>> Expected TimeoutException thrown");
-      }
-      return null;
-    }).get();
   }
 
   // restoreZoo
@@ -546,9 +520,7 @@ public class AdminIT extends ConfigurableMacBase {
   public void testVolumes() throws IOException, InterruptedException {
     // -l --list does not appear to do anything
     log.info("testVolumes...");
-    var p = getCluster().exec(Admin.class, "volumes");
-    assertNotEquals(0, p.getProcess().waitFor());
-    String result = p.readStdOut();
+    var result = execSuccess("volumes");
     log.info(result);
     assertTrue(result.contains("referenced in ROOT tablets section"));
     assertTrue(result.contains("referenced in METADATA tablets section"));
