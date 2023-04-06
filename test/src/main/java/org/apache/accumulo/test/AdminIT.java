@@ -114,7 +114,7 @@ public class AdminIT extends ConfigurableMacBase {
 
   @Test
   public void testUsage() throws IOException, InterruptedException {
-    log.info("testing usage...");
+    log.info(">>>> testing usage...");
     var p = getCluster().exec(Admin.class);
     assertEquals(0, p.getProcess().waitFor());
     var result = p.readStdOut();
@@ -286,7 +286,7 @@ public class AdminIT extends ConfigurableMacBase {
   // Default: false
   @Test
   public void testFateSummaryCommandWithSlowCompaction() throws Exception {
-    log.info("testFateSummaryCommanWithSlowCompaction...");
+    log.info("testFateSummaryCommandWithSlowCompaction...");
     try (AccumuloClient client = Accumulo.newClient().from(getClientProperties()).build()) {
       String namespace = "ns1";
       final String table = namespace + "." + getUniqueNames(1)[0];
@@ -521,8 +521,8 @@ public class AdminIT extends ConfigurableMacBase {
     tservers.forEach(p -> log.info("TServer: {}", p));
     tables.forEach(t -> log.info("Table: {}", t));
 
-    //String[] tableName = getUniqueNames(1);
-    //getCluster().getServerContext().tableOperations().create(tableName[0]);
+    // String[] tableName = getUniqueNames(1);
+    // getCluster().getServerContext().tableOperations().create(tableName[0]);
 
     var p = getCluster().exec(Admin.class, "verifyTabletAssigns");
     var success = p.getProcess().waitFor();
@@ -533,7 +533,7 @@ public class AdminIT extends ConfigurableMacBase {
     tables.forEach(table -> {
       assertTrue(result.contains("Checking table " + table));
     });
-    //getCluster().getServerContext().tableOperations().delete(tableName[0]);
+    // getCluster().getServerContext().tableOperations().delete(tableName[0]);
   }
 
   /*
