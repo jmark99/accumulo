@@ -172,15 +172,20 @@ public class AdminIT extends ConfigurableMacBase {
 
   @Test
   public void testAdminOptions() {
-    log.info("testAdminOptions...");
+    log.info("testAdminOptions...TBD");
   }
 
   // changeSecret
   // Changes the unique secret given to the instance that all servers must know.
   // Usage: changeSecret
   @Test
-  public void testChangeSecret() {
-    log.info("testChangeSecret...");
+  public void testChangeSecret() throws IOException, InterruptedException {
+    log.info("testChangeSecret...TBD");
+    // var p = getCluster().exec(Admin.class, "changeSecret");
+    // var res = p.getProcess().waitFor();
+    // log.info("res: {}", res);
+    // var result = p.readStdOut();
+    // log.info("result: {}", result);
   }
 
   // checkTablets
@@ -191,9 +196,63 @@ public class AdminIT extends ConfigurableMacBase {
   // Remove dangling file pointers
   // Default: false -t,
   // --table Table to check, if not set checks all tables
+
   @Test
-  public void testCheckTablets() {
+  public void testCheckTables1() throws Exception {
+    var p = getCluster().exec(Admin.class, "checkTablets");
+    assertEquals(0, p.getProcess().waitFor());
+    var result = p.readStdOut();
+    log.info("result:");
+    log.info("{}", result);
+    assertTrue(result.contains("*** Looking for offline tablets ***"));
+    assertTrue(result.contains("Scanning zookeeper"));
+    assertTrue(result.contains("Scanning accumulo.root"));
+    assertTrue(result.contains("Scanning accumulo.metadata"));
+    assertTrue(result.contains("*** Looking for missing files ***"));
+  }
+
+  @Test
+  public void testCheckTablets2() throws Exception {
     log.info("testCheckTablets...");
+    try (AccumuloClient client = Accumulo.newClient().from(getClientProperties()).build()) {
+      String namespace = "ns1";
+      client.namespaceOperations().create(namespace);
+      String[] tnames = getUniqueNames(3);
+
+      final String table1 = namespace + "." + tnames[0];
+      client.tableOperations().create(table1);
+      ReadWriteIT.ingest(client, 10, 10, 10, 0, table1);
+      client.tableOperations().flush(table1);
+
+      final String table2 = namespace + "." + tnames[1];
+      client.tableOperations().create(table2);
+      ReadWriteIT.ingest(client, 10, 10, 10, 0, table1);
+
+      final String table3 = namespace + "." + tnames[2];
+      client.tableOperations().create(table3);
+      SortedSet<Text> splits = new TreeSet<Text>();
+      splits.add(new Text("g"));
+      splits.add(new Text("m"));
+      splits.add(new Text("t"));
+      client.tableOperations().addSplits(table3, splits);
+      ReadWriteIT.ingest(client, 10, 10, 10, 0, table1);
+      client.tableOperations().compact(table3, null, null, false, false);
+
+      client.tableOperations().listSplits(table3).forEach(p -> log.info(">>>> {}", p));
+
+      var p = getCluster().exec(Admin.class, "checkTablets");
+      assertEquals(0, p.getProcess().waitFor());
+      var result = p.readStdOut();
+      log.info("result:");
+      log.info("{}", result);
+      assertTrue(result.contains("*** Looking for offline tablets ***"));
+      assertTrue(result.contains("Scanning zookeeper"));
+      assertTrue(result.contains("Scanning accumulo.root"));
+      assertTrue(result.contains("Scanning accumulo.metadata"));
+      assertTrue(result.contains("*** Looking for missing files ***"));
+      assertTrue(result.contains("Scan finished, 0 files of 1 missing"));
+      assertTrue(result.contains("Scan finished, 0 files of 5 missing"));
+    }
   }
 
   // deleteZooInstance
