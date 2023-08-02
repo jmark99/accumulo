@@ -23,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.Set;
 
@@ -57,8 +58,12 @@ public abstract class AbstractHashSampler implements Sampler {
   private HashFunction hashFunction;
   private int modulus;
 
-  private static final Set<String> VALID_OPTIONS = Set.of("hasher", "modulus");
-  private static final Set<String> VALID_VALUES_HASHER = Set.of("murmur3_32", "md5", "sha1");
+  private static final String HASHER_PROP_NAME = "hasher";
+  private static final String MODULUS_PROP_NAME = "modulus";
+
+  protected static final Set<String> REQUIRED_SAMPLER_OPTIONS =
+      Set.of(HASHER_PROP_NAME, MODULUS_PROP_NAME);
+  private static final Set<String> VALID_HASHERS = Set.of("murmur3_32", "md5", "sha1");
 
   /**
    * Subclasses with options should override this method to validate subclass options while also
@@ -66,30 +71,18 @@ public abstract class AbstractHashSampler implements Sampler {
    */
   @Override
   public void validateOptions(Map<String,String> config) {
+    // Validate required properties, HASHER_PROP_NAME and MODULUS_PROP_NAME
+    // Any additional options are validated in calling subclass
     for (Map.Entry<String,String> entry : config.entrySet()) {
-      checkArgument(VALID_OPTIONS.contains(entry.getKey()), "Unknown option: %s", entry.getKey());
-
-      if (entry.getKey().equals("hasher")) {
-        checkArgument(VALID_VALUES_HASHER.contains(entry.getValue()),
-            "Unknown value for hasher: %s", entry.getValue());
+      if (entry.getKey().equals(HASHER_PROP_NAME)) {
+        checkArgument(VALID_HASHERS.contains(entry.getValue()), "Unknown value for %s: %s",
+            HASHER_PROP_NAME, entry.getValue());
       }
-
-      if (entry.getKey().equals("modulus")) {
-        checkArgument(Integer.parseInt(entry.getValue()) > 0,
-            "Improper Integer value for modulus: %s", entry.getValue());
+      if (entry.getKey().equals(MODULUS_PROP_NAME)) {
+        checkArgument(Integer.parseInt(entry.getValue()) > 0, "Improper Integer value for %s: %s",
+            MODULUS_PROP_NAME, entry.getValue());
       }
     }
-  }
-
-  /**
-   * Subclasses with options should override this method and return true if the option is valid for
-   * the subclass or if {@code super.isValidOption(opt)} returns true.
-   *
-   * @deprecated since 2.1.0, replaced by {@link #validateOptions(Map)}
-   */
-  @Deprecated(since = "2.1.0")
-  protected boolean isValidOption(String option) {
-    return VALID_OPTIONS.contains(option);
   }
 
   /**
@@ -99,11 +92,11 @@ public abstract class AbstractHashSampler implements Sampler {
       justification = "these hashes don't protect any secrets, just used for binning")
   @Override
   public void init(SamplerConfiguration config) {
-    String hasherOpt = config.getOptions().get("hasher");
-    String modulusOpt = config.getOptions().get("modulus");
+    String hasherOpt = config.getOptions().get(HASHER_PROP_NAME);
+    String modulusOpt = config.getOptions().get(MODULUS_PROP_NAME);
 
-    requireNonNull(hasherOpt, "Hasher not specified");
-    requireNonNull(modulusOpt, "Modulus not specified");
+    requireNonNull(hasherOpt, HASHER_PROP_NAME + " not specified");
+    requireNonNull(modulusOpt, MODULUS_PROP_NAME + " not specified");
 
     switch (hasherOpt) {
       case "murmur3_32":
@@ -120,7 +113,7 @@ public abstract class AbstractHashSampler implements Sampler {
         hashFunction = deprecatedSha1;
         break;
       default:
-        throw new IllegalArgumentException("Unknown hasher " + hasherOpt);
+        throw new IllegalArgumentException("Unknown " + HASHER_PROP_NAME + ": " + hasherOpt);
     }
 
     modulus = Integer.parseInt(modulusOpt);
@@ -139,7 +132,7 @@ public abstract class AbstractHashSampler implements Sampler {
     try {
       hash(new DataoutputHasher(hasher), k);
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new UncheckedIOException(e);
     }
     return hasher.hash().asInt() % modulus == 0;
   }

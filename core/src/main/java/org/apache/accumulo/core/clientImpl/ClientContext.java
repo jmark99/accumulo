@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -74,12 +75,14 @@ import org.apache.accumulo.core.data.InstanceId;
 import org.apache.accumulo.core.data.KeyValue;
 import org.apache.accumulo.core.data.NamespaceId;
 import org.apache.accumulo.core.data.TableId;
-import org.apache.accumulo.core.fate.zookeeper.ServiceLock;
 import org.apache.accumulo.core.fate.zookeeper.ZooCache;
 import org.apache.accumulo.core.fate.zookeeper.ZooCache.ZcStat;
 import org.apache.accumulo.core.fate.zookeeper.ZooCacheFactory;
 import org.apache.accumulo.core.fate.zookeeper.ZooReader;
 import org.apache.accumulo.core.fate.zookeeper.ZooUtil;
+import org.apache.accumulo.core.lock.ServiceLock;
+import org.apache.accumulo.core.lock.ServiceLockData;
+import org.apache.accumulo.core.lock.ServiceLockData.ThriftService;
 import org.apache.accumulo.core.manager.state.tables.TableState;
 import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.metadata.schema.Ample;
@@ -366,11 +369,11 @@ public class ClientContext implements AccumuloClient {
     }
     Long maxLatency = ClientProperty.BATCH_WRITER_LATENCY_MAX.getTimeInMillis(props);
     if (maxLatency != null) {
-      batchWriterConfig.setMaxLatency(maxLatency, SECONDS);
+      batchWriterConfig.setMaxLatency(maxLatency, MILLISECONDS);
     }
     Long timeout = ClientProperty.BATCH_WRITER_TIMEOUT_MAX.getTimeInMillis(props);
     if (timeout != null) {
-      batchWriterConfig.setTimeout(timeout, SECONDS);
+      batchWriterConfig.setTimeout(timeout, MILLISECONDS);
     }
     Integer maxThreads = ClientProperty.BATCH_WRITER_THREADS_MAX.getInteger(props);
     if (maxThreads != null) {
@@ -402,11 +405,10 @@ public class ClientContext implements AccumuloClient {
       try {
         final var zLockPath = ServiceLock.path(root + "/" + addr);
         ZcStat stat = new ZcStat();
-        byte[] lockData = ServiceLock.getLockData(getZooCache(), zLockPath, stat);
-        if (lockData != null) {
-          String[] fields = new String(lockData, UTF_8).split(",", 2);
-          UUID uuid = UUID.fromString(fields[0]);
-          String group = fields[1];
+        Optional<ServiceLockData> sld = ServiceLock.getLockData(getZooCache(), zLockPath, stat);
+        if (sld.isPresent()) {
+          UUID uuid = sld.orElseThrow().getServerUUID(ThriftService.TABLET_SCAN);
+          String group = sld.orElseThrow().getGroup(ThriftService.TABLET_SCAN);
           liveScanServers.put(addr, new Pair<>(uuid, group));
         }
       } catch (IllegalArgumentException e) {
@@ -430,7 +432,7 @@ public class ClientContext implements AccumuloClient {
 
     Long timeout = ClientProperty.CONDITIONAL_WRITER_TIMEOUT_MAX.getTimeInMillis(props);
     if (timeout != null) {
-      conditionalWriterConfig.setTimeout(timeout, SECONDS);
+      conditionalWriterConfig.setTimeout(timeout, MILLISECONDS);
     }
     String durability = ClientProperty.CONDITIONAL_WRITER_DURABILITY.getValue(props);
     if (!durability.isEmpty()) {
@@ -512,24 +514,28 @@ public class ClientContext implements AccumuloClient {
     OpTimer timer = null;
 
     if (log.isTraceEnabled()) {
-      log.trace("tid={} Looking up manager location in zookeeper.", Thread.currentThread().getId());
+      log.trace("tid={} Looking up manager location in zookeeper at {}.",
+          Thread.currentThread().getId(), zLockManagerPath);
       timer = new OpTimer().start();
     }
 
-    byte[] loc = zooCache.getLockData(zLockManagerPath);
+    Optional<ServiceLockData> sld = zooCache.getLockData(zLockManagerPath);
+    String location = null;
+    if (sld.isPresent()) {
+      location = sld.orElseThrow().getAddressString(ThriftService.MANAGER);
+    }
 
     if (timer != null) {
       timer.stop();
       log.trace("tid={} Found manager at {} in {}", Thread.currentThread().getId(),
-          (loc == null ? "null" : new String(loc, UTF_8)),
-          String.format("%.3f secs", timer.scale(SECONDS)));
+          (location == null ? "null" : location), String.format("%.3f secs", timer.scale(SECONDS)));
     }
 
-    if (loc == null) {
+    if (location == null) {
       return Collections.emptyList();
     }
 
-    return Collections.singletonList(new String(loc, UTF_8));
+    return Collections.singletonList(location);
   }
 
   /**

@@ -830,8 +830,8 @@ public class RFile {
     public void next() throws IOException {
       try {
         _next();
-      } catch (IOException ioe) {
-        reset();
+      } catch (IOException | RuntimeException ioe) {
+        reset(true);
         throw ioe;
       }
     }
@@ -913,19 +913,22 @@ public class RFile {
 
       try {
         _seek(range);
-      } catch (IOException ioe) {
-        reset();
+      } catch (IOException | RuntimeException ioe) {
+        reset(true);
         throw ioe;
       }
     }
 
-    private void reset() {
+    private void reset(boolean exceptionThrown) {
       rk = null;
       hasTop = false;
       if (currBlock != null) {
         try {
           try {
             currBlock.close();
+            if (exceptionThrown) {
+              reader.close();
+            }
           } catch (IOException e) {
             log.warn("Failed to close block reader", e);
           }
@@ -955,7 +958,7 @@ public class RFile {
 
       if (range.afterEndKey(firstKey)) {
         // range is before first key in rfile, so there is nothing to do
-        reset();
+        reset(false);
         reseek = false;
       }
 
@@ -1017,7 +1020,7 @@ public class RFile {
       if (reseek) {
         iiter = index.lookup(startKey);
 
-        reset();
+        reset(false);
 
         if (iiter.hasNext()) {
 
@@ -1292,7 +1295,7 @@ public class RFile {
     @Override
     public void closeDeepCopies() {
       if (deepCopy) {
-        throw new RuntimeException("Calling closeDeepCopies on a deep copy is not supported");
+        throw new IllegalStateException("Calling closeDeepCopies on a deep copy is not supported");
       }
 
       for (Reader deepCopy : deepCopies) {
@@ -1305,7 +1308,7 @@ public class RFile {
     @Override
     public void close() throws IOException {
       if (deepCopy) {
-        throw new RuntimeException("Calling close on a deep copy is not supported");
+        throw new IllegalStateException("Calling close on a deep copy is not supported");
       }
 
       closeDeepCopies();
@@ -1531,11 +1534,12 @@ public class RFile {
     @Override
     public void setInterruptFlag(AtomicBoolean flag) {
       if (deepCopy) {
-        throw new RuntimeException("Calling setInterruptFlag on a deep copy is not supported");
+        throw new IllegalStateException("Calling setInterruptFlag on a deep copy is not supported");
       }
 
       if (!deepCopies.isEmpty()) {
-        throw new RuntimeException("Setting interrupt flag after calling deep copy not supported");
+        throw new IllegalStateException(
+            "Setting interrupt flag after calling deep copy not supported");
       }
 
       setInterruptFlagInternal(flag);

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Consumer;
 
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ClientProperty;
@@ -47,11 +48,13 @@ import org.slf4j.LoggerFactory;
  * @since 1.6.0
  */
 public class MiniAccumuloConfigImpl {
+
   private static final Logger log = LoggerFactory.getLogger(MiniAccumuloConfigImpl.class);
   private static final String DEFAULT_INSTANCE_SECRET = "DONTTELL";
 
   private File dir = null;
   private String rootPassword = null;
+  private Map<String,String> hadoopConfOverrides = new HashMap<>();
   private Map<String,String> siteConfig = new HashMap<>();
   private Map<String,String> configuredSiteConig = new HashMap<>();
   private Map<String,String> clientProps = new HashMap<>();
@@ -96,6 +99,8 @@ public class MiniAccumuloConfigImpl {
   // These are only used on top of existing instances
   private Configuration hadoopConf;
   private SiteConfiguration accumuloConf;
+
+  private Consumer<MiniAccumuloConfigImpl> preStartConfigProcessor;
 
   /**
    * @param dir An empty or nonexistent directory that Accumulo and Zookeeper can store data in.
@@ -152,12 +157,6 @@ public class MiniAccumuloConfigImpl {
       // since there is a small amount of memory, check more frequently for majc... setting may not
       // be needed in 1.5
       mergeProp(Property.TSERV_MAJC_DELAY.getKey(), "3");
-      @SuppressWarnings("deprecation")
-      Property generalClasspaths = Property.GENERAL_CLASSPATHS;
-      mergeProp(generalClasspaths.getKey(), libDir.getAbsolutePath() + "/[^.].*[.]jar");
-      @SuppressWarnings("deprecation")
-      Property generalDynamicClasspaths = Property.GENERAL_DYNAMIC_CLASSPATHS;
-      mergeProp(generalDynamicClasspaths.getKey(), libExtDir.getAbsolutePath() + "/[^.].*[.]jar");
       mergeProp(Property.GC_CYCLE_DELAY.getKey(), "4s");
       mergeProp(Property.GC_CYCLE_START.getKey(), "0s");
       mergePropWithRandomPort(Property.MANAGER_CLIENTPORT.getKey());
@@ -795,5 +794,45 @@ public class MiniAccumuloConfigImpl {
    */
   public void setNumCompactors(int numCompactors) {
     this.numCompactors = numCompactors;
+  }
+
+  /**
+   * Set the object that will be used to modify the site configuration right before it's written out
+   * a file. This would be useful in the case where the configuration needs to be updated based on a
+   * property that is set in MiniAccumuloClusterImpl like instance.volumes
+   *
+   */
+  public void setPreStartConfigProcessor(Consumer<MiniAccumuloConfigImpl> processor) {
+    this.preStartConfigProcessor = processor;
+  }
+
+  /**
+   * Called by MiniAccumuloClusterImpl after all modifications are done to the configuration and
+   * right before it's written out to a file.
+   */
+  public void preStartConfigUpdate() {
+    if (this.preStartConfigProcessor != null) {
+      this.preStartConfigProcessor.accept(this);
+    }
+  }
+
+  /**
+   * Add server-side Hadoop configuration properties
+   *
+   * @param overrides properties
+   * @since 2.1.1
+   */
+  public void setHadoopConfOverrides(Map<String,String> overrides) {
+    hadoopConfOverrides.putAll(overrides);
+  }
+
+  /**
+   * Get server-side Hadoop configuration properties
+   *
+   * @return map of properties set in prior call to {@link #setHadoopConfOverrides(Map)}
+   * @since 2.1.1
+   */
+  public Map<String,String> getHadoopConfOverrides() {
+    return new HashMap<>(hadoopConfOverrides);
   }
 }

@@ -36,6 +36,7 @@ import org.apache.accumulo.core.spi.compaction.SimpleCompactionDispatcher;
 import org.apache.accumulo.core.spi.fs.RandomVolumeChooser;
 import org.apache.accumulo.core.spi.scan.ScanDispatcher;
 import org.apache.accumulo.core.spi.scan.ScanPrioritizer;
+import org.apache.accumulo.core.spi.scan.ScanServerSelector;
 import org.apache.accumulo.core.spi.scan.SimpleScanDispatcher;
 import org.apache.accumulo.core.util.format.DefaultFormatter;
 import org.slf4j.LoggerFactory;
@@ -118,6 +119,16 @@ public enum Property {
           + " a comma or other reserved characters in a URI use standard URI hex"
           + " encoding. For example replace commas with %2C.",
       "1.6.0"),
+  INSTANCE_VOLUME_CONFIG_PREFIX("instance.volume.config.", null, PropertyType.PREFIX,
+      "Properties in this category are used to provide volume specific overrides to "
+          + "the general filesystem client configuration. Properties using this prefix "
+          + "should be in the form "
+          + "'instance.volume.config.<volume-uri>.<property-name>=<property-value>. An "
+          + "example: "
+          + "'instance.volume.config.hdfs://namespace-a:8020/accumulo.dfs.client.hedged.read.threadpool.size=10'. "
+          + "Note that when specifying property names that contain colons in the properties "
+          + "files that the colons need to be escaped with a backslash.",
+      "2.1.1"),
   INSTANCE_VOLUMES_REPLACEMENTS("instance.volumes.replacements", "", PropertyType.STRING,
       "Since accumulo stores absolute URIs changing the location of a namenode "
           + "could prevent Accumulo from starting. The property helps deal with "
@@ -195,20 +206,6 @@ public enum Property {
       "Properties in this category affect the behavior of accumulo overall, but"
           + " do not have to be consistent throughout a cloud.",
       "1.3.5"),
-  @Deprecated(since = "2.0.0")
-  GENERAL_DYNAMIC_CLASSPATHS(
-      org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader.DYNAMIC_CLASSPATH_PROPERTY_NAME,
-      org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader.DEFAULT_DYNAMIC_CLASSPATH_VALUE,
-      PropertyType.STRING,
-      "A list of all of the places where changes "
-          + "in jars or classes will force a reload of the classloader. Built-in dynamic class "
-          + "loading will be removed in a future version. If this is needed, consider overriding "
-          + "the Java system class loader with one that has this feature "
-          + "(https://docs.oracle.com/javase/8/docs/api/java/lang/ClassLoader.html#getSystemClassLoader--). "
-          + "Additionally, this property no longer does property interpolation of environment "
-          + "variables, such as '$ACCUMULO_HOME'. Use commons-configuration syntax,"
-          + "'${env:ACCUMULO_HOME}' instead.",
-      "1.3.5"),
   GENERAL_CONTEXT_CLASSLOADER_FACTORY("general.context.class.loader.factory", "",
       PropertyType.CLASSNAME,
       "Name of classloader factory to be used to create classloaders for named contexts,"
@@ -264,6 +261,29 @@ public enum Property {
   GENERAL_DELEGATION_TOKEN_UPDATE_INTERVAL("general.delegation.token.update.interval", "1d",
       PropertyType.TIMEDURATION, "The length of time between generation of new secret keys",
       "1.7.0"),
+  GENERAL_LOW_MEM_DETECTOR_INTERVAL("general.low.mem.detector.interval", "5s",
+      PropertyType.TIMEDURATION, "The time interval between low memory checks", "3.0.0"),
+  GENERAL_LOW_MEM_DETECTOR_THRESHOLD("general.low.mem.detector.threshold", "0.05",
+      PropertyType.FRACTION,
+      "The LowMemoryDetector will report when free memory drops below this percentage of total memory",
+      "3.0.0"),
+  GENERAL_LOW_MEM_SCAN_PROTECTION("general.low.mem.protection.scan", "false", PropertyType.BOOLEAN,
+      "Scans may be paused or return results early when the server "
+          + "is low on memory and this property is set to true. Enabling this property will incur a slight "
+          + "scan performance penalty when the server is not low on memory",
+      "3.0.0"),
+  GENERAL_LOW_MEM_MINC_PROTECTION("general.low.mem.protection.compaction.minc", "false",
+      PropertyType.BOOLEAN,
+      "Minor compactions may be paused when the server "
+          + "is low on memory and this property is set to true. Enabling this property will incur a slight "
+          + "compaction performance penalty when the server is not low on memory",
+      "3.0.0"),
+  GENERAL_LOW_MEM_MAJC_PROTECTION("general.low.mem.protection.compaction.majc", "false",
+      PropertyType.BOOLEAN,
+      "Major compactions may be paused when the server "
+          + "is low on memory and this property is set to true. Enabling this property will incur a slight "
+          + "compaction performance penalty when the server is not low on memory",
+      "3.0.0"),
   GENERAL_MAX_SCANNER_RETRY_PERIOD("general.max.scanner.retry.period", "5s",
       PropertyType.TIMEDURATION,
       "The maximum amount of time that a Scanner should wait before retrying a failed RPC",
@@ -274,11 +294,12 @@ public enum Property {
       PropertyType.BOOLEAN, "Enables JVM metrics functionality using Micrometer", "2.1.0"),
   GENERAL_MICROMETER_FACTORY("general.micrometer.factory", "", PropertyType.CLASSNAME,
       "Name of class that implements MeterRegistryFactory", "2.1.0"),
+  GENERAL_PROCESS_BIND_ADDRESS("general.process.bind.addr", "0.0.0.0", PropertyType.STRING,
+      "The local IP address to which this server should bind for sending and receiving network traffic",
+      "3.0.0"),
   // properties that are specific to manager server behavior
   MANAGER_PREFIX("manager.", null, PropertyType.PREFIX,
-      "Properties in this category affect the behavior of the manager server. "
-          + "Since 2.1.0, all properties in this category replace the old `master.*` names.",
-      "2.1.0"),
+      "Properties in this category affect the behavior of the manager server.", "2.1.0"),
   MANAGER_CLIENTPORT("manager.port.client", "9999", PropertyType.PORT,
       "The port used for handling client connections on the manager", "1.3.5"),
   MANAGER_TABLET_BALANCER("manager.tablet.balancer",
@@ -286,22 +307,15 @@ public enum Property {
       "The balancer class that accumulo will use to make tablet assignment and "
           + "migration decisions.",
       "1.3.5"),
-  MANAGER_BULK_RETRIES("manager.bulk.retries", "3", PropertyType.COUNT,
-      "The number of attempts to bulk import a RFile before giving up.", "1.4.0"),
-  MANAGER_BULK_THREADPOOL_SIZE("manager.bulk.threadpool.size", "5", PropertyType.COUNT,
-      "The number of threads to use when coordinating a bulk import.", "1.4.0"),
-  MANAGER_BULK_THREADPOOL_TIMEOUT("manager.bulk.threadpool.timeout", "0s",
+  MANAGER_TABLET_GROUP_WATCHER_INTERVAL("manager.tablet.watcher.interval", "60s",
       PropertyType.TIMEDURATION,
-      "The time after which bulk import threads terminate with no work available.  Zero (0) will keep the threads alive indefinitely.",
-      "2.1.0"),
+      "Time to wait between scanning tablet states to identify tablets that need to be assigned, un-assigned, migrated, etc.",
+      "2.1.2"),
   MANAGER_BULK_TIMEOUT("manager.bulk.timeout", "5m", PropertyType.TIMEDURATION,
       "The time to wait for a tablet server to process a bulk import request", "1.4.3"),
   MANAGER_RENAME_THREADS("manager.rename.threadpool.size", "20", PropertyType.COUNT,
       "The number of threads to use when renaming user files during table import or bulk ingest.",
       "2.1.0"),
-  MANAGER_BULK_TSERVER_REGEX("manager.bulk.tserver.regex", "", PropertyType.STRING,
-      "Regular expression that defines the set of Tablet Servers that will perform bulk imports",
-      "2.0.0"),
   MANAGER_MINTHREADS("manager.server.threads.minimum", "20", PropertyType.COUNT,
       "The minimum number of threads to use to handle incoming requests.", "1.4.0"),
   MANAGER_MINTHREADS_TIMEOUT("manager.server.threads.timeout", "0s", PropertyType.TIMEDURATION,
@@ -313,6 +327,9 @@ public enum Property {
       "When a tablet server's lock is deleted, it takes time for it to "
           + "completely quit. This delay gives it time before log recoveries begin.",
       "1.5.0"),
+  MANAGER_RECOVERY_WAL_EXISTENCE_CACHE_TIME("manager.recovery.wal.cache.time", "15s",
+      PropertyType.TIMEDURATION,
+      "Amount of time that the existence of recovery write-ahead logs is cached.", "2.1.2"),
   MANAGER_LEASE_RECOVERY_WAITING_PERIOD("manager.lease.recovery.interval", "5s",
       PropertyType.TIMEDURATION,
       "The amount of time to wait after requesting a write-ahead log to be recovered", "1.5.0"),
@@ -364,6 +381,13 @@ public enum Property {
   @Experimental
   SSERV_DEFAULT_BLOCKSIZE("sserver.default.blocksize", "1M", PropertyType.BYTES,
       "Specifies a default blocksize for the scan server caches", "2.1.0"),
+  @Experimental
+  SSERV_GROUP_NAME("sserver.group", ScanServerSelector.DEFAULT_SCAN_SERVER_GROUP_NAME,
+      PropertyType.STRING,
+      "Optional group name that will be made available to the "
+          + "ScanServerSelector client plugin. Groups support at least two use cases:"
+          + " dedicating resources to scans and/or using different hardware for scans.",
+      "3.0.0"),
   @Experimental
   SSERV_CACHED_TABLET_METADATA_EXPIRATION("sserver.cache.metadata.expiration", "5m",
       PropertyType.TIMEDURATION, "The time after which cached tablet metadata will be refreshed.",
@@ -605,23 +629,6 @@ public enum Property {
           + " minor compacted file because it may have been modified by iterators. The"
           + " file dumped to the local dir is an exact copy of what was in memory.",
       "1.3.5"),
-  TSERV_BULK_PROCESS_THREADS("tserver.bulk.process.threads", "1", PropertyType.COUNT,
-      "The manager will task a tablet server with pre-processing a bulk import"
-          + " RFile prior to assigning it to the appropriate tablet servers. This"
-          + " configuration value controls the number of threads used to process the files.",
-      "1.4.0"),
-  TSERV_BULK_ASSIGNMENT_THREADS("tserver.bulk.assign.threads", "1", PropertyType.COUNT,
-      "The manager delegates bulk import RFile processing and assignment to"
-          + " tablet servers. After file has been processed, the tablet server will"
-          + " assign the file to the appropriate tablets on all servers. This property"
-          + " controls the number of threads used to communicate to the other servers.",
-      "1.4.0"),
-  TSERV_BULK_RETRY("tserver.bulk.retry.max", "5", PropertyType.COUNT,
-      "The number of times the tablet server will attempt to assign a RFile to"
-          + " a tablet as it migrates and splits.",
-      "1.4.0"),
-  TSERV_BULK_TIMEOUT("tserver.bulk.timeout", "5m", PropertyType.TIMEDURATION,
-      "The time to wait for a tablet server to process a bulk import request.", "1.4.3"),
   TSERV_HEALTH_CHECK_FREQ("tserver.health.check.interval", "30m", PropertyType.TIMEDURATION,
       "The time between tablet server health checks.", "2.1.0"),
   TSERV_MINTHREADS("tserver.server.threads.minimum", "20", PropertyType.COUNT,
@@ -733,8 +740,6 @@ public enum Property {
       "The listening port for the garbage collector's monitor service", "1.3.5"),
   GC_DELETE_THREADS("gc.threads.delete", "16", PropertyType.COUNT,
       "The number of threads used to delete RFiles and write-ahead logs", "1.3.5"),
-  GC_TRASH_IGNORE("gc.trash.ignore", "false", PropertyType.BOOLEAN,
-      "Do not use the Trash, even if it is configured.", "1.5.0"),
   GC_SAFEMODE("gc.safemode", "false", PropertyType.BOOLEAN,
       "Provides listing of files to be deleted but does not delete any files", "2.1.0"),
   GC_USE_FULL_COMPACTION("gc.post.metadata.action", "flush", PropertyType.GC_POST_ACTION,
@@ -789,7 +794,6 @@ public enum Property {
           + " The resources that are used by default can be seen in"
           + " accumulo/server/monitor/src/main/resources/templates/default.ftl",
       "2.0.0"),
-
   // per table properties
   TABLE_PREFIX("table.", null, PropertyType.PREFIX,
       "Properties in this category affect tablet server treatment of tablets,"
@@ -875,7 +879,7 @@ public enum Property {
       "The maximum amount of memory that will be used to cache results of a client query/scan. "
           + "Once this limit is reached, the buffered data is sent to the client.",
       "1.3.5"),
-  TABLE_FILE_TYPE("table.file.type", RFile.EXTENSION, PropertyType.STRING,
+  TABLE_FILE_TYPE("table.file.type", RFile.EXTENSION, PropertyType.FILENAME_EXT,
       "Change the type of file a table writes", "1.3.5"),
   TABLE_LOAD_BALANCER("table.balancer", "org.apache.accumulo.core.spi.balancer.SimpleLoadBalancer",
       PropertyType.STRING,
@@ -1017,13 +1021,6 @@ public enum Property {
       "1.3.5"),
   TABLE_FORMATTER_CLASS("table.formatter", DefaultFormatter.class.getName(), PropertyType.STRING,
       "The Formatter class to apply on results in the shell", "1.4.0"),
-  @Deprecated(since = "2.1.0")
-  TABLE_INTERPRETER_CLASS("table.interepreter",
-      org.apache.accumulo.core.util.interpret.DefaultScanInterpreter.class.getName(),
-      PropertyType.STRING,
-      "The ScanInterpreter class to apply on scan arguments in the shell. "
-          + "Note that this property is deprecated and will be removed in a future version.",
-      "1.5.0"),
   TABLE_CLASSLOADER_CONTEXT("table.class.loader.context", "", PropertyType.STRING,
       "The context to use for loading per-table resources, such as iterators"
           + " from the configured factory in `general.context.class.loader.factory`.",
@@ -1068,45 +1065,6 @@ public enum Property {
           + "constraint.",
       "2.0.0"),
 
-  // VFS ClassLoader properties
-
-  // this property shouldn't be used directly; it exists solely to document the default value
-  // defined by its use in AccumuloVFSClassLoader when generating the property documentation
-  @Deprecated(since = "2.1.0", forRemoval = true)
-  VFS_CLASSLOADER_SYSTEM_CLASSPATH_PROPERTY(
-      org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader.VFS_CLASSLOADER_SYSTEM_CLASSPATH_PROPERTY,
-      "", PropertyType.STRING,
-      "Configuration for a system level vfs classloader. Accumulo jar can be"
-          + " configured here and loaded out of HDFS.",
-      "1.5.0"),
-  @Deprecated(since = "2.1.0", forRemoval = true)
-  VFS_CONTEXT_CLASSPATH_PROPERTY(
-      org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader.VFS_CONTEXT_CLASSPATH_PROPERTY,
-      null, PropertyType.PREFIX,
-      "Properties in this category are define a classpath. These properties"
-          + " start  with the category prefix, followed by a context name. The value is"
-          + " a comma separated list of URIs. Supports full regex on filename alone."
-          + " For example, general.vfs.context.classpath.cx1=hdfs://nn1:9902/mylibdir/*.jar."
-          + " You can enable post delegation for a context, which will load classes from the"
-          + " context first instead of the parent first. Do this by setting"
-          + " `general.vfs.context.classpath.<name>.delegation=post`, where `<name>` is"
-          + " your context name. If delegation is not specified, it defaults to loading"
-          + " from parent classloader first.",
-      "1.5.0"),
-
-  // this property shouldn't be used directly; it exists solely to document the default value
-  // defined by its use in AccumuloVFSClassLoader when generating the property documentation
-  @Deprecated(since = "2.1.0", forRemoval = true)
-  VFS_CLASSLOADER_CACHE_DIR(
-      org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader.VFS_CACHE_DIR,
-      "${java.io.tmpdir}", PropertyType.ABSOLUTEPATH,
-      "The base directory to use for the vfs cache. The actual cached files will be located"
-          + " in a subdirectory, `accumulo-vfs-cache-<jvmProcessName>-${user.name}`, where"
-          + " `<jvmProcessName>` is determined by the JVM's internal management engine."
-          + " The cache will keep a soft reference to all of the classes loaded in the VM."
-          + " This should be on local disk on each node with sufficient space.",
-      "1.5.0"),
-
   // Compactor properties
   @Experimental
   COMPACTOR_PREFIX("compactor.", null, PropertyType.PREFIX,
@@ -1131,6 +1089,9 @@ public enum Property {
   @Experimental
   COMPACTOR_MAX_MESSAGE_SIZE("compactor.message.size.max", "10M", PropertyType.BYTES,
       "The maximum size of a message that can be sent to a tablet server.", "2.1.0"),
+  @Experimental
+  COMPACTOR_QUEUE_NAME("compactor.queue", "", PropertyType.STRING,
+      "The queue for which this Compactor will perform compactions", "3.0.0"),
   // CompactionCoordinator properties
   @Experimental
   COMPACTION_COORDINATOR_PREFIX("compaction.coordinator.", null, PropertyType.PREFIX,
@@ -1179,17 +1140,7 @@ public enum Property {
   @Experimental
   COMPACTION_COORDINATOR_TSERVER_COMPACTION_CHECK_INTERVAL(
       "compaction.coordinator.tserver.check.interval", "1m", PropertyType.TIMEDURATION,
-      "The interval at which to check the tservers for external compactions.", "2.1.0"),
-  // deprecated properties grouped at the end to reference property that replaces them
-  @Deprecated(since = "2.0.0")
-  GENERAL_CLASSPATHS(org.apache.accumulo.start.classloader.AccumuloClassLoader.GENERAL_CLASSPATHS,
-      "", PropertyType.STRING,
-      "The class path should instead be configured"
-          + " by the launch environment (for example, accumulo-env.sh). A list of all"
-          + " of the places to look for a class. Order does matter, as it will look for"
-          + " the jar starting in the first location to the last. Supports full regex"
-          + " on filename alone.",
-      "1.3.5");
+      "The interval at which to check the tservers for external compactions.", "2.1.0");
 
   private final String key;
   private final String defaultValue;
@@ -1463,7 +1414,7 @@ public enum Property {
       TSERV_SUMMARYCACHE_SIZE,
 
       // others
-      TSERV_NATIVEMAP_ENABLED, TSERV_SCAN_MAX_OPENFILES);
+      TSERV_NATIVEMAP_ENABLED, TSERV_SCAN_MAX_OPENFILES, MANAGER_RECOVERY_WAL_EXISTENCE_CACHE_TIME);
 
   /**
    * Checks if the given property may be changed via Zookeeper, but not recognized until the restart
@@ -1488,8 +1439,7 @@ public enum Property {
         || key.startsWith(Property.TSERV_PREFIX.getKey())
         || key.startsWith(Property.MANAGER_PREFIX.getKey())
         || key.startsWith(Property.GC_PREFIX.getKey())
-        || key.startsWith(Property.GENERAL_ARBITRARY_PROP_PREFIX.getKey())
-        || key.startsWith(VFS_CONTEXT_CLASSPATH_PROPERTY.getKey());
+        || key.startsWith(Property.GENERAL_ARBITRARY_PROP_PREFIX.getKey());
   }
 
   /**

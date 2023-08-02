@@ -19,6 +19,7 @@
 package org.apache.accumulo.test.manager;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.accumulo.core.util.LazySingletons.RANDOM;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -158,7 +159,7 @@ public class SuspendedTabletsIT extends ConfigurableMacBase {
       // kill tablet servers that are not hosting the metadata table.
       List<ProcessReference> procs = getCluster().getProcesses().get(ServerType.TABLET_SERVER)
           .stream().filter(p -> !metadataTserverProcess.equals(p)).collect(Collectors.toList());
-      Collections.shuffle(procs, random);
+      Collections.shuffle(procs, RANDOM.get());
       assertEquals(TSERVERS - 1, procs.size(), "Not enough tservers exist");
       assertTrue(procs.size() >= count, "Attempting to kill more tservers (" + count
           + ") than exist in the cluster (" + procs.size() + ")");
@@ -183,14 +184,14 @@ public class SuspendedTabletsIT extends ConfigurableMacBase {
       for (TabletLocationState tls : locs.locationStates.values()) {
         if (tls.current != null) {
           // add to set of all servers
-          tserverSet.add(tls.current);
+          tserverSet.add(tls.current.getServerInstance());
 
           // get server that the current tablets metadata is on
           TabletLocator.TabletLocation tab =
               tl.locateTablet(ctx, tls.extent.toMetaRow(), false, false);
           // add it to the set of servers with metadata
-          metadataServerSet
-              .add(new TServerInstance(tab.tablet_location, Long.valueOf(tab.tablet_session, 16)));
+          metadataServerSet.add(new TServerInstance(tab.getTserverLocation(),
+              Long.valueOf(tab.getTserverSession(), 16)));
         }
       }
 
@@ -202,7 +203,7 @@ public class SuspendedTabletsIT extends ConfigurableMacBase {
           "Expecting " + (TSERVERS - 1) + " tServers in shutdown-list");
 
       List<TServerInstance> tserversList = new ArrayList<>(tserverSet);
-      Collections.shuffle(tserversList, random);
+      Collections.shuffle(tserversList, RANDOM.get());
 
       for (int i1 = 0; i1 < count; ++i1) {
         final String tserverName = tserversList.get(i1).getHostPortSession();

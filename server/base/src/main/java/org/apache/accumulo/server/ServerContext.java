@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
@@ -66,6 +67,7 @@ import org.apache.accumulo.server.conf.TableConfiguration;
 import org.apache.accumulo.server.conf.store.PropStore;
 import org.apache.accumulo.server.conf.store.impl.ZooPropStore;
 import org.apache.accumulo.server.fs.VolumeManager;
+import org.apache.accumulo.server.mem.LowMemoryDetector;
 import org.apache.accumulo.server.metadata.ServerAmpleImpl;
 import org.apache.accumulo.server.rpc.SaslServerConnectionParams;
 import org.apache.accumulo.server.rpc.ThriftServerType;
@@ -102,6 +104,7 @@ public class ServerContext extends ClientContext {
   private final Supplier<ScheduledThreadPoolExecutor> sharedScheduledThreadPool;
   private final Supplier<AuditedSecurityOperation> securityOperation;
   private final Supplier<CryptoServiceFactory> cryptoFactorySupplier;
+  private final Supplier<LowMemoryDetector> lowMemoryDetector;
 
   public ServerContext(SiteConfiguration siteConfig) {
     this(new ServerInfo(siteConfig));
@@ -127,6 +130,7 @@ public class ServerContext extends ClientContext {
     securityOperation =
         memoize(() -> new AuditedSecurityOperation(this, SecurityOperation.getAuthorizor(this),
             SecurityOperation.getAuthenticator(this), SecurityOperation.getPermHandler(this)));
+    lowMemoryDetector = memoize(() -> new LowMemoryDetector());
   }
 
   /**
@@ -192,7 +196,7 @@ public class ServerContext extends ClientContext {
       // currentUser() like KerberosToken
       loginUser = UserGroupInformation.getLoginUser();
     } catch (IOException e) {
-      throw new RuntimeException("Could not get login user", e);
+      throw new UncheckedIOException("Could not get login user", e);
     }
 
     checkArgument(loginUser.hasKerberosCredentials(), "Server does not have Kerberos credentials");
@@ -451,6 +455,10 @@ public class ServerContext extends ClientContext {
 
   public String zkUserPath() {
     return zkUserPath.get();
+  }
+
+  public LowMemoryDetector getLowMemoryDetector() {
+    return lowMemoryDetector.get();
   }
 
 }

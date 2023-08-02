@@ -20,6 +20,7 @@ package org.apache.accumulo.core.conf.cluster;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.yaml.snakeyaml.Yaml;
@@ -38,6 +40,16 @@ public class ClusterConfigParser {
 
   private static final String PROPERTY_FORMAT = "%s=\"%s\"%n";
   private static final String[] SECTIONS = new String[] {"manager", "monitor", "gc", "tserver"};
+
+  private static final Set<String> VALID_CONFIG_KEYS = Set.of("manager", "monitor", "gc", "tserver",
+      "tservers_per_host", "sservers_per_host", "compaction.coordinator");
+
+  private static final Set<String> VALID_CONFIG_PREFIXES =
+      Set.of("compaction.compactor.", "sserver.");
+
+  private static final Predicate<String> VALID_CONFIG_SECTIONS =
+      section -> VALID_CONFIG_KEYS.contains(section)
+          || VALID_CONFIG_PREFIXES.stream().anyMatch(section::startsWith);
 
   @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "paths not set by user input")
   public static Map<String,String> parseConfiguration(String configFile) throws IOException {
@@ -60,14 +72,12 @@ public class ClusterConfigParser {
         (parentKey == null || parentKey.equals("")) ? "" : parentKey + addTheDot(parentKey);
     if (value instanceof String) {
       results.put(parent + key, (String) value);
-      return;
     } else if (value instanceof List) {
       ((List<?>) value).forEach(l -> {
         if (l instanceof String) {
           // remove the [] at the ends of toString()
           String val = value.toString();
           results.put(parent + key, val.substring(1, val.length() - 1).replace(", ", " "));
-          return;
         } else {
           flatten(parent, key, l, results);
         }
@@ -78,20 +88,25 @@ public class ClusterConfigParser {
       map.forEach((k, v) -> flatten(parent + key, k, v, results));
     } else if (value instanceof Number) {
       results.put(parent + key, value.toString());
-      return;
     } else {
-      throw new RuntimeException("Unhandled object type: " + value.getClass());
+      throw new IllegalStateException("Unhandled object type: " + value.getClass());
     }
   }
 
   public static void outputShellVariables(Map<String,String> config, PrintStream out) {
+
+    // find invalid config sections and point the user to the first one
+    config.keySet().stream().filter(VALID_CONFIG_SECTIONS.negate()).findFirst()
+        .ifPresent(section -> {
+          throw new IllegalArgumentException("Unknown configuration section : " + section);
+        });
 
     for (String section : SECTIONS) {
       if (config.containsKey(section)) {
         out.printf(PROPERTY_FORMAT, section.toUpperCase() + "_HOSTS", config.get(section));
       } else {
         if (section.equals("manager") || section.equals("tserver")) {
-          throw new RuntimeException("Required configuration section is missing: " + section);
+          throw new IllegalStateException("Required configuration section is missing: " + section);
         }
         System.err.println("WARN: " + section + " is missing");
       }
@@ -135,12 +150,23 @@ public class ClusterConfigParser {
     out.flush();
   }
 
+  @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN",
+      justification = "Path provided for output file is intentional")
   public static void main(String[] args) throws IOException {
-    if (args == null || args.length != 1) {
-      System.err.println("Usage: ClusterConfigParser <configFile>");
+    if (args == null || args.length < 1 || args.length > 2) {
+      System.err.println("Usage: ClusterConfigParser <configFile> [<outputFile>]");
       System.exit(1);
     }
-    outputShellVariables(parseConfiguration(args[0]), System.out);
+
+    if (args.length == 2) {
+      // Write to a file instead of System.out if provided as an argument
+      try (OutputStream os = Files.newOutputStream(Paths.get(args[1]), StandardOpenOption.CREATE);
+          PrintStream out = new PrintStream(os)) {
+        outputShellVariables(parseConfiguration(args[0]), new PrintStream(out));
+      }
+    } else {
+      outputShellVariables(parseConfiguration(args[0]), System.out);
+    }
   }
 
 }

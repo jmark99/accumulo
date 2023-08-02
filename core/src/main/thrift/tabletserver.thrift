@@ -23,7 +23,6 @@ include "data.thrift"
 include "security.thrift"
 include "client.thrift"
 include "manager.thrift"
-include "master.thrift"
 
 exception NotServingTabletException {
   1:data.TKeyExtent extent
@@ -83,6 +82,7 @@ struct ActiveCompaction {
   9:i64 entriesWritten
   10:list<data.IterInfo> ssiList
   11:map<string, map<string, string>> ssio
+  12:i64 timesPaused
 }
 
 struct TIteratorSetting {
@@ -153,7 +153,7 @@ service TabletServerClientService {
     6:binary endRow
   )
 
-  master.TabletServerStatus getTabletServerStatus(
+  manager.TabletServerStatus getTabletServerStatus(
     3:client.TInfo tinfo
     1:security.TCredentials credentials
   ) throws (

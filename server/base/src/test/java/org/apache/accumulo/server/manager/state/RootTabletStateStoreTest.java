@@ -37,9 +37,11 @@ import org.apache.accumulo.core.metadata.TServerInstance;
 import org.apache.accumulo.core.metadata.TabletLocationState;
 import org.apache.accumulo.core.metadata.TabletLocationState.BadLocationStateException;
 import org.apache.accumulo.core.metadata.schema.Ample;
+import org.apache.accumulo.core.metadata.schema.Ample.DataLevel;
 import org.apache.accumulo.core.metadata.schema.RootTabletMetadata;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType;
+import org.apache.accumulo.core.metadata.schema.TabletMetadata.Location;
 import org.apache.accumulo.core.metadata.schema.TabletsMetadata;
 import org.apache.accumulo.server.MockServerContext;
 import org.apache.accumulo.server.ServerContext;
@@ -92,17 +94,17 @@ public class RootTabletStateStoreTest {
     ServerContext context = MockServerContext.get();
     expect(context.getAmple()).andReturn(new TestAmple()).anyTimes();
     EasyMock.replay(context);
-    ZooTabletStateStore tstore = new ZooTabletStateStore(context);
+    ZooTabletStateStore tstore = new ZooTabletStateStore(DataLevel.ROOT, context);
     KeyExtent root = RootTable.EXTENT;
     String sessionId = "this is my unique session data";
     TServerInstance server =
         new TServerInstance(HostAndPort.fromParts("127.0.0.1", 10000), sessionId);
-    List<Assignment> assignments = Collections.singletonList(new Assignment(root, server));
+    List<Assignment> assignments = Collections.singletonList(new Assignment(root, server, null));
     tstore.setFutureLocations(assignments);
     int count = 0;
     for (TabletLocationState location : tstore) {
       assertEquals(location.extent, root);
-      assertEquals(location.future, server);
+      assertEquals(location.future.getServerInstance(), server);
       assertNull(location.current);
       count++;
     }
@@ -112,13 +114,14 @@ public class RootTabletStateStoreTest {
     for (TabletLocationState location : tstore) {
       assertEquals(location.extent, root);
       assertNull(location.future);
-      assertEquals(location.current, server);
+      assertEquals(location.current.getServerInstance(), server);
       count++;
     }
     assertEquals(count, 1);
     TabletLocationState assigned = null;
     try {
-      assigned = new TabletLocationState(root, server, null, null, null, null, false);
+      assigned =
+          new TabletLocationState(root, Location.future(server), null, null, null, null, false);
     } catch (BadLocationStateException e) {
       fail("Unexpected error " + e);
     }
@@ -133,14 +136,14 @@ public class RootTabletStateStoreTest {
     assertEquals(count, 1);
 
     KeyExtent notRoot = new KeyExtent(TableId.of("0"), null, null);
-    final var assignmentList = List.of(new Assignment(notRoot, server));
+    final var assignmentList = List.of(new Assignment(notRoot, server, null));
 
     assertThrows(IllegalArgumentException.class, () -> tstore.setLocations(assignmentList));
     assertThrows(IllegalArgumentException.class, () -> tstore.setFutureLocations(assignmentList));
 
     try {
       TabletLocationState broken =
-          new TabletLocationState(notRoot, server, null, null, null, null, false);
+          new TabletLocationState(notRoot, Location.future(server), null, null, null, null, false);
       final var assignmentList1 = List.of(broken);
       assertThrows(IllegalArgumentException.class, () -> tstore.unassign(assignmentList1, null));
     } catch (BadLocationStateException e) {

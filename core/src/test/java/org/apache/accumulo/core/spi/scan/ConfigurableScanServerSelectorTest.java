@@ -18,12 +18,12 @@
  */
 package org.apache.accumulo.core.spi.scan;
 
+import static org.apache.accumulo.core.util.LazySingletons.RANDOM;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
@@ -253,12 +253,11 @@ public class ConfigurableScanServerSelectorTest {
 
     Map<String,Long> allServersSeen = new HashMap<>();
 
-    SecureRandom rand = new SecureRandom();
-
     for (int t = 0; t < 10000; t++) {
       Set<String> serversSeen = new HashSet<>();
 
-      String endRow = Long.toString(Math.abs(Math.max(rand.nextLong(), Long.MIN_VALUE + 1)), 36);
+      String endRow =
+          Long.toString(Math.abs(Math.max(RANDOM.get().nextLong(), Long.MIN_VALUE + 1)), 36);
 
       var tabletId = t % 1000 == 0 ? nti("" + t, null) : nti("" + t, endRow);
 
@@ -294,8 +293,10 @@ public class ConfigurableScanServerSelectorTest {
         "{'scanTypeActivations':['mega'],'maxBusyTimeout':'60m','busyTimeoutMultiplier':2, "
             + "'attemptPlans':[{'servers':'100%', 'busyTimeout':'10m'}]}";
 
+    // Intentionally put the default profile in 2nd position. There was a bug where config parsing
+    // would fail if the default did not come first.
     var opts = Map.of("profiles",
-        "[" + defaultProfile + ", " + profile1 + "," + profile2 + "]".replace('\'', '"'));
+        "[" + profile1 + ", " + defaultProfile + "," + profile2 + "]".replace('\'', '"'));
 
     runBusyTest(1000, 0, 5, 5, opts);
     runBusyTest(1000, 1, 20, 33, opts);

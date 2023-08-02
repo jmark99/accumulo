@@ -19,7 +19,6 @@
 package org.apache.accumulo.core.metadata.schema;
 
 import static java.util.stream.Collectors.toSet;
-import static org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.SuspendLocationColumn;
 import static org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.ServerColumnFamily.COMPACT_COLUMN;
 import static org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.ServerColumnFamily.DIRECTORY_COLUMN;
 import static org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.ServerColumnFamily.FLUSH_COLUMN;
@@ -57,6 +56,7 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.Da
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.FutureLocationColumnFamily;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.LastLocationColumnFamily;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.ScanFileColumnFamily;
+import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.SuspendLocationColumn;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.TabletColumnFamily;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata.ColumnType;
 import org.apache.accumulo.core.metadata.schema.TabletMetadata.LocationType;
@@ -197,7 +197,7 @@ public class TabletMetadataTest {
     TabletState state = tm.getTabletState(tservers);
 
     assertEquals(TabletState.ASSIGNED, state);
-    assertEquals(ser1, tm.getLocation());
+    assertEquals(ser1, tm.getLocation().getServerInstance());
     assertEquals(ser1.getSession(), tm.getLocation().getSession());
     assertEquals(LocationType.FUTURE, tm.getLocation().getType());
     assertFalse(tm.hasCurrent());
@@ -211,7 +211,7 @@ public class TabletMetadataTest {
     tm = TabletMetadata.convertRow(rowMap.entrySet().iterator(), colsToFetch, false);
 
     assertEquals(TabletState.HOSTED, tm.getTabletState(tservers));
-    assertEquals(ser2, tm.getLocation());
+    assertEquals(ser2, tm.getLocation().getServerInstance());
     assertEquals(ser2.getSession(), tm.getLocation().getSession());
     assertEquals(LocationType.CURRENT, tm.getLocation().getType());
     assertTrue(tm.hasCurrent());
@@ -225,7 +225,7 @@ public class TabletMetadataTest {
     tm = TabletMetadata.convertRow(rowMap.entrySet().iterator(), colsToFetch, false);
 
     assertEquals(TabletState.ASSIGNED_TO_DEAD_SERVER, tm.getTabletState(tservers));
-    assertEquals(deadSer, tm.getLocation());
+    assertEquals(deadSer, tm.getLocation().getServerInstance());
     assertEquals(deadSer.getSession(), tm.getLocation().getSession());
     assertEquals(LocationType.CURRENT, tm.getLocation().getType());
     assertTrue(tm.hasCurrent());

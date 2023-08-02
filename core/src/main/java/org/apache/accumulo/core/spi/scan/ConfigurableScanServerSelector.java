@@ -19,9 +19,10 @@
 package org.apache.accumulo.core.spi.scan;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.accumulo.core.util.LazySingletons.GSON;
+import static org.apache.accumulo.core.util.LazySingletons.RANDOM;
 
 import java.lang.reflect.Type;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,7 +42,6 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -144,10 +144,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * will keep increasing the busy timeout by multiplying 8 until the maximum of 20 minutes is
  * reached. For this profile it will choose from scan servers in the group {@literal lowcost}.
  * </p>
+ *
+ * @since 2.1.0
  */
 public class ConfigurableScanServerSelector implements ScanServerSelector {
 
-  private static final SecureRandom RANDOM = new SecureRandom();
   public static final String PROFILES_DEFAULT = "[{'isDefault':true,'maxBusyTimeout':'5m',"
       + "'busyTimeoutMultiplier':8, 'scanTypeActivations':[], "
       + "'attemptPlans':[{'servers':'3', 'busyTimeout':'33ms', 'salt':'one'},"
@@ -261,9 +262,8 @@ public class ConfigurableScanServerSelector implements ScanServerSelector {
 
   private void parseProfiles(Map<String,String> options) {
     Type listType = new TypeToken<ArrayList<Profile>>() {}.getType();
-    Gson gson = new Gson();
     List<Profile> profList =
-        gson.fromJson(options.getOrDefault("profiles", PROFILES_DEFAULT), listType);
+        GSON.get().fromJson(options.getOrDefault("profiles", PROFILES_DEFAULT), listType);
 
     profiles = new HashMap<>();
     defaultProfile = null;
@@ -284,10 +284,10 @@ public class ConfigurableScanServerSelector implements ScanServerSelector {
 
         defaultProfile = prof;
       }
+    }
 
-      if (defaultProfile == null) {
-        throw new IllegalArgumentException("No default profile specified");
-      }
+    if (defaultProfile == null) {
+      throw new IllegalArgumentException("No default profile specified");
     }
   }
 
@@ -363,8 +363,8 @@ public class ConfigurableScanServerSelector implements ScanServerSelector {
 
       var hashCode = hashTablet(tablet, profile.getSalt(attempts));
 
-      int serverIndex =
-          (Math.abs(hashCode.asInt()) + RANDOM.nextInt(numServers)) % orderedScanServers.size();
+      int serverIndex = (Math.abs(hashCode.asInt()) + RANDOM.get().nextInt(numServers))
+          % orderedScanServers.size();
 
       serverToUse = orderedScanServers.get(serverIndex);
 

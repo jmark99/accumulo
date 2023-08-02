@@ -20,6 +20,11 @@ package org.apache.accumulo.manager;
 
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.Collections.emptySortedMap;
+import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -43,13 +48,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.cli.ConfigOpts;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
@@ -65,25 +70,27 @@ import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.dataImpl.KeyExtent;
 import org.apache.accumulo.core.fate.AgeOffStore;
 import org.apache.accumulo.core.fate.Fate;
-import org.apache.accumulo.core.fate.zookeeper.ServiceLock;
-import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockLossReason;
-import org.apache.accumulo.core.fate.zookeeper.ServiceLock.ServiceLockPath;
 import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.core.fate.zookeeper.ZooUtil;
 import org.apache.accumulo.core.fate.zookeeper.ZooUtil.NodeExistsPolicy;
 import org.apache.accumulo.core.fate.zookeeper.ZooUtil.NodeMissingPolicy;
+import org.apache.accumulo.core.lock.ServiceLock;
+import org.apache.accumulo.core.lock.ServiceLock.LockLossReason;
+import org.apache.accumulo.core.lock.ServiceLock.ServiceLockPath;
+import org.apache.accumulo.core.lock.ServiceLockData;
+import org.apache.accumulo.core.lock.ServiceLockData.ThriftService;
 import org.apache.accumulo.core.manager.balancer.AssignmentParamsImpl;
 import org.apache.accumulo.core.manager.balancer.BalanceParamsImpl;
 import org.apache.accumulo.core.manager.balancer.TServerStatusImpl;
 import org.apache.accumulo.core.manager.balancer.TabletServerIdImpl;
 import org.apache.accumulo.core.manager.state.tables.TableState;
+import org.apache.accumulo.core.manager.thrift.BulkImportState;
 import org.apache.accumulo.core.manager.thrift.ManagerClientService;
 import org.apache.accumulo.core.manager.thrift.ManagerGoalState;
 import org.apache.accumulo.core.manager.thrift.ManagerMonitorInfo;
 import org.apache.accumulo.core.manager.thrift.ManagerState;
-import org.apache.accumulo.core.master.thrift.BulkImportState;
-import org.apache.accumulo.core.master.thrift.TableInfo;
-import org.apache.accumulo.core.master.thrift.TabletServerStatus;
+import org.apache.accumulo.core.manager.thrift.TableInfo;
+import org.apache.accumulo.core.manager.thrift.TabletServerStatus;
 import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.metadata.TServerInstance;
@@ -114,7 +121,6 @@ import org.apache.accumulo.manager.upgrade.UpgradeCoordinator;
 import org.apache.accumulo.server.AbstractServer;
 import org.apache.accumulo.server.HighlyAvailableService;
 import org.apache.accumulo.server.ServerContext;
-import org.apache.accumulo.server.ServerOpts;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.manager.LiveTServerSet;
 import org.apache.accumulo.server.manager.LiveTServerSet.TServerConnection;
@@ -125,6 +131,7 @@ import org.apache.accumulo.server.manager.state.MergeInfo;
 import org.apache.accumulo.server.manager.state.MergeState;
 import org.apache.accumulo.server.manager.state.TabletServerState;
 import org.apache.accumulo.server.manager.state.TabletStateStore;
+import org.apache.accumulo.server.manager.state.UnassignedTablet;
 import org.apache.accumulo.server.rpc.HighlyAvailableServiceWrapper;
 import org.apache.accumulo.server.rpc.ServerAddress;
 import org.apache.accumulo.server.rpc.TServerUtils;
@@ -151,6 +158,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentelemetry.api.trace.Span;
@@ -167,9 +175,6 @@ public class Manager extends AbstractServer
   static final Logger log = LoggerFactory.getLogger(Manager.class);
 
   static final int ONE_SECOND = 1000;
-  static final long TIME_TO_WAIT_BETWEEN_SCANS = 60 * ONE_SECOND;
-  // made this less than TIME_TO_WAIT_BETWEEN_SCANS, so that the cache is cleared between cycles
-  static final long TIME_TO_CACHE_RECOVERY_WAL_EXISTENCE = TIME_TO_WAIT_BETWEEN_SCANS / 4;
   private static final long TIME_BETWEEN_MIGRATION_CLEANUPS = 5 * 60 * ONE_SECOND;
   static final long WAIT_BETWEEN_ERRORS = ONE_SECOND;
   private static final long DEFAULT_WAIT_FOR_WATCHER = 10 * ONE_SECOND;
@@ -217,6 +222,9 @@ public class Manager extends AbstractServer
 
   private final AtomicBoolean managerInitialized = new AtomicBoolean(false);
   private final AtomicBoolean managerUpgrading = new AtomicBoolean(false);
+  private final long timeToCacheRecoveryWalExistence;
+
+  private ExecutorService tableInformationStatusPool = null;
 
   @Override
   public synchronized ManagerState getManagerState() {
@@ -240,7 +248,7 @@ public class Manager extends AbstractServer
   Fate<Manager> fate() {
     try {
       // block up to 30 seconds until it's ready; if it's still not ready, introduce some logging
-      if (!fateReadyLatch.await(30, TimeUnit.SECONDS)) {
+      if (!fateReadyLatch.await(30, SECONDS)) {
         String msgPrefix = "Unexpected use of fate in thread " + Thread.currentThread().getName()
             + " at time " + System.currentTimeMillis();
         // include stack trace so we know where it's coming from, in case we need to troubleshoot it
@@ -248,7 +256,7 @@ public class Manager extends AbstractServer
             new IllegalStateException("Attempted fate action before manager finished starting up; "
                 + "if this doesn't make progress, please report it as a bug to the developers"));
         int minutes = 0;
-        while (!fateReadyLatch.await(5, TimeUnit.MINUTES)) {
+        while (!fateReadyLatch.await(5, MINUTES)) {
           minutes += 5;
           log.warn("{} still blocked after {} minutes; this is getting weird", msgPrefix, minutes);
         }
@@ -291,7 +299,7 @@ public class Manager extends AbstractServer
         // This frees the main thread and will cause the manager to exit
         clientService.stop();
         Manager.this.nextEvent.event("stopped event loop");
-      }, 100L, 1000L, TimeUnit.MILLISECONDS);
+      }, 100L, 1000L, MILLISECONDS);
       ThreadPools.watchNonCriticalScheduledTask(future);
     }
 
@@ -403,12 +411,12 @@ public class Manager extends AbstractServer
   }
 
   public static void main(String[] args) throws Exception {
-    try (Manager manager = new Manager(new ServerOpts(), args)) {
+    try (Manager manager = new Manager(new ConfigOpts(), args)) {
       manager.runServer();
     }
   }
 
-  Manager(ServerOpts opts, String[] args) throws IOException {
+  Manager(ConfigOpts opts, String[] args) throws IOException {
     super("manager", opts, args);
     ServerContext context = super.getContext();
     balancerEnvironment = new BalancerEnvironmentImpl(context);
@@ -442,6 +450,8 @@ public class Manager extends AbstractServer
       log.info("SASL is not enabled, delegation tokens will not be available");
       delegationTokensAvailable = false;
     }
+    this.timeToCacheRecoveryWalExistence =
+        aconf.getTimeInMillis(Property.MANAGER_RECOVERY_WAL_EXISTENCE_CACHE_TIME);
   }
 
   public InstanceId getInstanceID() {
@@ -532,7 +542,7 @@ public class Manager extends AbstractServer
         return ManagerGoalState.valueOf(new String(data));
       } catch (Exception e) {
         log.error("Problem getting real goal state from zookeeper: ", e);
-        sleepUninterruptibly(1, TimeUnit.SECONDS);
+        sleepUninterruptibly(1, SECONDS);
       }
     }
   }
@@ -623,7 +633,7 @@ public class Manager extends AbstractServer
         return TabletGoalState.UNASSIGNED;
       }
 
-      if (tls.current != null && serversToShutdown.contains(tls.current)) {
+      if (tls.current != null && serversToShutdown.contains(tls.current.getServerInstance())) {
         return TabletGoalState.SUSPENDED;
       }
       // Handle merge transitions
@@ -664,7 +674,7 @@ public class Manager extends AbstractServer
       if (state == TabletGoalState.HOSTED) {
         // Maybe this tablet needs to be migrated
         TServerInstance dest = migrations.get(extent);
-        if (dest != null && tls.current != null && !dest.equals(tls.current)) {
+        if (dest != null && tls.current != null && !dest.equals(tls.current.getServerInstance())) {
           return TabletGoalState.UNASSIGNED;
         }
       }
@@ -685,7 +695,7 @@ public class Manager extends AbstractServer
             log.error("Error cleaning up migrations", ex);
           }
         }
-        sleepUninterruptibly(TIME_BETWEEN_MIGRATION_CLEANUPS, TimeUnit.MILLISECONDS);
+        sleepUninterruptibly(TIME_BETWEEN_MIGRATION_CLEANUPS, MILLISECONDS);
       }
     }
 
@@ -835,7 +845,7 @@ public class Manager extends AbstractServer
           TraceUtil.setException(span, t, false);
           log.error("Error balancing tablets, will wait for {} (seconds) and then retry ",
               WAIT_BETWEEN_ERRORS / ONE_SECOND, t);
-          sleepUninterruptibly(WAIT_BETWEEN_ERRORS, TimeUnit.MILLISECONDS);
+          sleepUninterruptibly(WAIT_BETWEEN_ERRORS, MILLISECONDS);
         } finally {
           span.end();
         }
@@ -952,20 +962,19 @@ public class Manager extends AbstractServer
       Set<TServerInstance> currentServers, SortedMap<TabletServerId,TServerStatus> balancerMap) {
     final long rpcTimeout = getConfiguration().getTimeInMillis(Property.GENERAL_RPC_TIMEOUT);
     int threads = getConfiguration().getCount(Property.MANAGER_STATUS_THREAD_POOL_SIZE);
-    ExecutorService tp = ThreadPools.getServerThreadPools()
-        .createExecutorService(getConfiguration(), Property.MANAGER_STATUS_THREAD_POOL_SIZE, false);
     long start = System.currentTimeMillis();
     final SortedMap<TServerInstance,TabletServerStatus> result = new ConcurrentSkipListMap<>();
     final RateLimiter shutdownServerRateLimiter = RateLimiter.create(MAX_SHUTDOWNS_PER_SEC);
+    final ArrayList<Future<?>> tasks = new ArrayList<>();
     for (TServerInstance serverInstance : currentServers) {
       final TServerInstance server = serverInstance;
       if (threads == 0) {
         // Since an unbounded thread pool is being used, rate limit how fast task are added to the
         // executor. This prevents the threads from growing large unless there are lots of
         // unresponsive tservers.
-        sleepUninterruptibly(Math.max(1, rpcTimeout / 120_000), TimeUnit.MILLISECONDS);
+        sleepUninterruptibly(Math.max(1, rpcTimeout / 120_000), MILLISECONDS);
       }
-      tp.execute(() -> {
+      tasks.add(tableInformationStatusPool.submit(() -> {
         try {
           Thread t = Thread.currentThread();
           String oldName = t.getName();
@@ -1014,16 +1023,27 @@ public class Manager extends AbstractServer
             badServers.remove(server);
           }
         }
-      });
+      }));
     }
-    tp.shutdown();
-    try {
-      tp.awaitTermination(Math.max(10000, rpcTimeout / 3), TimeUnit.MILLISECONDS);
-    } catch (InterruptedException e) {
-      log.debug("Interrupted while fetching status");
+    // wait at least 10 seconds
+    final long nanosToWait = Math.max(SECONDS.toNanos(10), MILLISECONDS.toNanos(rpcTimeout) / 3);
+    final long startTime = System.nanoTime();
+    // Wait for all tasks to complete
+    while (!tasks.isEmpty()) {
+      boolean cancel = ((System.nanoTime() - startTime) > nanosToWait);
+      Iterator<Future<?>> iter = tasks.iterator();
+      while (iter.hasNext()) {
+        Future<?> f = iter.next();
+        if (cancel) {
+          f.cancel(true);
+        } else {
+          if (f.isDone()) {
+            iter.remove();
+          }
+        }
+      }
+      Uninterruptibles.sleepUninterruptibly(1, MILLISECONDS);
     }
-
-    tp.shutdownNow();
 
     // Threads may still modify map after shutdownNow is called, so create an immutable snapshot.
     SortedMap<TServerInstance,TabletServerStatus> info = ImmutableSortedMap.copyOf(result);
@@ -1072,8 +1092,9 @@ public class Manager extends AbstractServer
     log.info("Started Manager client service at {}", sa.address);
 
     // block until we can obtain the ZK lock for the manager
+    ServiceLockData sld = null;
     try {
-      getManagerLock(ServiceLock.path(zroot + Constants.ZMANAGER_LOCK));
+      sld = getManagerLock(ServiceLock.path(zroot + Constants.ZMANAGER_LOCK));
     } catch (KeeperException | InterruptedException e) {
       throw new IllegalStateException("Exception getting manager lock", e);
     }
@@ -1087,16 +1108,20 @@ public class Manager extends AbstractServer
     try {
       MetricsUtil.initializeMetrics(getContext().getConfiguration(), this.applicationName,
           sa.getAddress());
-      ManagerMetrics.init(getConfiguration(), this);
+      ManagerMetrics mm = new ManagerMetrics(getConfiguration(), this);
+      MetricsUtil.initializeProducers(this, mm);
     } catch (ClassNotFoundException | InstantiationException | IllegalAccessException
         | IllegalArgumentException | InvocationTargetException | NoSuchMethodException
         | SecurityException e1) {
       log.error("Error initializing metrics, metrics will not be emitted.", e1);
     }
 
-    recoveryManager = new RecoveryManager(this, TIME_TO_CACHE_RECOVERY_WAL_EXISTENCE);
+    recoveryManager = new RecoveryManager(this, timeToCacheRecoveryWalExistence);
 
     context.getTableManager().addObserver(this);
+
+    tableInformationStatusPool = ThreadPools.getServerThreadPools()
+        .createExecutorService(getConfiguration(), Property.MANAGER_STATUS_THREAD_POOL_SIZE, false);
 
     Thread statusThread = Threads.createThread("Status Thread", new StatusThread());
     statusThread.start();
@@ -1176,25 +1201,23 @@ public class Manager extends AbstractServer
     }
 
     try {
-      final AgeOffStore<Manager> store =
-          new AgeOffStore<>(
-              new org.apache.accumulo.core.fate.ZooStore<>(getZooKeeperRoot() + Constants.ZFATE,
-                  context.getZooReaderWriter()),
-              TimeUnit.HOURS.toMillis(8), System::currentTimeMillis);
+      final AgeOffStore<Manager> store = new AgeOffStore<>(
+          new org.apache.accumulo.core.fate.ZooStore<>(getZooKeeperRoot() + Constants.ZFATE,
+              context.getZooReaderWriter()),
+          HOURS.toMillis(8), System::currentTimeMillis);
 
-      Fate<Manager> f = new Fate<>(this, store, TraceRepo::toLogString);
-      f.startTransactionRunners(getConfiguration());
+      Fate<Manager> f = new Fate<>(this, store, TraceRepo::toLogString, getConfiguration());
       fateRef.set(f);
       fateReadyLatch.countDown();
 
       ThreadPools.watchCriticalScheduledTask(context.getScheduledExecutor()
-          .scheduleWithFixedDelay(store::ageOff, 63000, 63000, TimeUnit.MILLISECONDS));
+          .scheduleWithFixedDelay(store::ageOff, 63000, 63000, MILLISECONDS));
     } catch (KeeperException | InterruptedException e) {
       throw new IllegalStateException("Exception setting up FaTE cleanup thread", e);
     }
 
-    ThreadPools.watchCriticalScheduledTask(context.getScheduledExecutor().scheduleWithFixedDelay(
-        () -> ScanServerMetadataEntries.clean(context), 10, 10, TimeUnit.MINUTES));
+    ThreadPools.watchCriticalScheduledTask(context.getScheduledExecutor()
+        .scheduleWithFixedDelay(() -> ScanServerMetadataEntries.clean(context), 10, 10, MINUTES));
 
     // Make sure that we have a secret key (either a new one or an old one from ZK) before we start
     // the manager client service.
@@ -1216,32 +1239,31 @@ public class Manager extends AbstractServer
           log.info("Waiting for AuthenticationTokenKeyManager to be initialized");
           logged = true;
         }
-        sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
+        sleepUninterruptibly(200, MILLISECONDS);
       }
       // And log when we are initialized
       log.info("AuthenticationTokenSecretManager is initialized");
     }
 
     String address = sa.address.toString();
-    log.info("Setting manager lock data to {}", address);
+    sld = new ServiceLockData(sld.getServerUUID(ThriftService.MANAGER), address,
+        ThriftService.MANAGER);
+    log.info("Setting manager lock data to {}", sld.toString());
     try {
-      managerLock.replaceLockData(address.getBytes());
+      managerLock.replaceLockData(sld);
     } catch (KeeperException | InterruptedException e) {
       throw new IllegalStateException("Exception updating manager lock", e);
     }
 
     while (!clientService.isServing()) {
-      sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      sleepUninterruptibly(100, MILLISECONDS);
     }
-
-    // checking stored user hashes if any of them uses an outdated algorithm
-    security.validateStoredUserCreditentials();
 
     // The manager is fully initialized. Clients are allowed to connect now.
     managerInitialized.set(true);
 
     while (clientService.isServing()) {
-      sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+      sleepUninterruptibly(500, MILLISECONDS);
     }
     log.info("Shutting down fate.");
     fate().shutdown();
@@ -1252,6 +1274,8 @@ public class Manager extends AbstractServer
     } catch (InterruptedException e) {
       throw new IllegalStateException("Exception stopping status thread", e);
     }
+
+    tableInformationStatusPool.shutdownNow();
 
     // Signal that we want it to stop, and wait for it to do so.
     if (authenticationTokenKeyManager != null) {
@@ -1293,8 +1317,7 @@ public class Manager extends AbstractServer
    * @throws InterruptedException if interrupted while blocking, propagated for caller to handle.
    */
   private void blockForTservers() throws InterruptedException {
-
-    long waitStart = System.currentTimeMillis();
+    long waitStart = System.nanoTime();
 
     long minTserverCount =
         getConfiguration().getCount(Property.MANAGER_STARTUP_TSERVER_AVAIL_MIN_COUNT);
@@ -1304,24 +1327,31 @@ public class Manager extends AbstractServer
           tserverSet.size(), Property.MANAGER_STARTUP_TSERVER_AVAIL_MIN_COUNT.getKey());
       return;
     }
+    long userWait = MILLISECONDS.toSeconds(
+        getConfiguration().getTimeInMillis(Property.MANAGER_STARTUP_TSERVER_AVAIL_MAX_WAIT));
 
-    long maxWait =
-        getConfiguration().getTimeInMillis(Property.MANAGER_STARTUP_TSERVER_AVAIL_MAX_WAIT);
+    // Setting retry values for defined wait timeouts
+    long retries = 10;
+    // Set these to the same value so the max possible wait time always matches the provided maxWait
+    long initialWait = userWait / retries;
+    long maxWaitPeriod = initialWait;
+    long waitIncrement = 0;
 
-    if (maxWait <= 0) {
+    if (userWait <= 0) {
       log.info("tserver availability check set to block indefinitely, To change, set {} > 0.",
           Property.MANAGER_STARTUP_TSERVER_AVAIL_MAX_WAIT.getKey());
-      maxWait = Long.MAX_VALUE;
+      userWait = Long.MAX_VALUE;
+
+      // If indefinitely blocking, change retry values to support incremental backoff and logging.
+      retries = userWait;
+      initialWait = 1;
+      maxWaitPeriod = 30;
+      waitIncrement = 5;
     }
 
-    // honor Retry condition that initial wait < max wait, otherwise use small value to allow thread
-    // yield to happen
-    long initialWait = Math.min(50, maxWait / 2);
-
-    Retry tserverRetry =
-        Retry.builder().infiniteRetries().retryAfter(initialWait, TimeUnit.MILLISECONDS)
-            .incrementBy(15_000, TimeUnit.MILLISECONDS).maxWait(maxWait, TimeUnit.MILLISECONDS)
-            .backOffFactor(1).logInterval(30_000, TimeUnit.MILLISECONDS).createRetry();
+    Retry tserverRetry = Retry.builder().maxRetries(retries).retryAfter(initialWait, SECONDS)
+        .incrementBy(waitIncrement, SECONDS).maxWait(maxWaitPeriod, SECONDS).backOffFactor(1)
+        .logInterval(30, SECONDS).createRetry();
 
     log.info("Checking for tserver availability - need to reach {} servers. Have {}",
         minTserverCount, tserverSet.size());
@@ -1336,27 +1366,25 @@ public class Manager extends AbstractServer
 
       // suppress last message once threshold reached.
       if (needTservers) {
-        log.info(
-            "Blocking for tserver availability - need to reach {} servers. Have {}"
-                + " Time spent blocking {} sec.",
+        tserverRetry.logRetry(log, String.format(
+            "Blocking for tserver availability - need to reach %s servers. Have %s Time spent blocking %s seconds.",
             minTserverCount, tserverSet.size(),
-            TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - waitStart));
+            NANOSECONDS.toSeconds(System.nanoTime() - waitStart)));
       }
+      tserverRetry.useRetry();
     }
 
     if (tserverSet.size() < minTserverCount) {
       log.warn(
           "tserver availability check time expired - continuing. Requested {}, have {} tservers on line. "
-              + " Time waiting {} ms",
-          tserverSet.size(), minTserverCount,
-          TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - waitStart));
+              + " Time waiting {} sec",
+          tserverSet.size(), minTserverCount, NANOSECONDS.toSeconds(System.nanoTime() - waitStart));
 
     } else {
       log.info(
           "tserver availability check completed. Requested {}, have {} tservers on line. "
-              + " Time waiting {} ms",
-          tserverSet.size(), minTserverCount,
-          TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - waitStart));
+              + " Time waiting {} sec",
+          tserverSet.size(), minTserverCount, NANOSECONDS.toSeconds(System.nanoTime() - waitStart));
     }
   }
 
@@ -1425,7 +1453,7 @@ public class Manager extends AbstractServer
     }
   }
 
-  private void getManagerLock(final ServiceLockPath zManagerLoc)
+  private ServiceLockData getManagerLock(final ServiceLockPath zManagerLoc)
       throws KeeperException, InterruptedException {
     var zooKeeper = getContext().getZooReaderWriter().getZooKeeper();
     log.info("trying to get manager lock");
@@ -1434,11 +1462,13 @@ public class Manager extends AbstractServer
         getHostname() + ":" + getConfiguration().getPort(Property.MANAGER_CLIENTPORT)[0];
 
     UUID zooLockUUID = UUID.randomUUID();
+    ServiceLockData sld =
+        new ServiceLockData(zooLockUUID, managerClientAddress, ThriftService.MANAGER);
     while (true) {
 
       ManagerLockWatcher managerLockWatcher = new ManagerLockWatcher();
       managerLock = new ServiceLock(zooKeeper, zManagerLoc, zooLockUUID);
-      managerLock.lock(managerLockWatcher, managerClientAddress.getBytes());
+      managerLock.lock(managerLockWatcher, sld);
 
       managerLockWatcher.waitForChange();
 
@@ -1452,10 +1482,11 @@ public class Manager extends AbstractServer
 
       managerLock.tryToCancelAsyncLockOrUnlock();
 
-      sleepUninterruptibly(TIME_TO_WAIT_BETWEEN_LOCK_CHECKS, TimeUnit.MILLISECONDS);
+      sleepUninterruptibly(TIME_TO_WAIT_BETWEEN_LOCK_CHECKS, MILLISECONDS);
     }
 
     setManagerState(ManagerState.HAVE_LOCK);
+    return sld;
   }
 
   @Override
@@ -1723,9 +1754,11 @@ public class Manager extends AbstractServer
   }
 
   void getAssignments(SortedMap<TServerInstance,TabletServerStatus> currentStatus,
-      Map<KeyExtent,TServerInstance> unassigned, Map<KeyExtent,TServerInstance> assignedOut) {
-    AssignmentParamsImpl params =
-        AssignmentParamsImpl.fromThrift(currentStatus, unassigned, assignedOut);
+      Map<KeyExtent,UnassignedTablet> unassigned, Map<KeyExtent,TServerInstance> assignedOut) {
+    AssignmentParamsImpl params = AssignmentParamsImpl.fromThrift(currentStatus,
+        unassigned.entrySet().stream().collect(HashMap::new,
+            (m, e) -> m.put(e.getKey(), e.getValue().getServerInstance()), Map::putAll),
+        assignedOut);
     tabletBalancer.getAssignments(params);
   }
 }

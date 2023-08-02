@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.apache.accumulo.core.file.rfile.RFile;
 import org.apache.commons.lang3.Range;
 import org.apache.hadoop.fs.Path;
 
@@ -106,11 +107,8 @@ public enum PropertyType {
           + "Substitutions of the ACCUMULO_HOME environment variable can be done in the system "
           + "config file using '${env:ACCUMULO_HOME}' or similar."),
 
-  // VFS_CLASSLOADER_CACHE_DIR's default value is a special case, for documentation purposes
-  @SuppressWarnings("removal")
   ABSOLUTEPATH("absolute path",
-      x -> x == null || x.trim().isEmpty() || new Path(x.trim()).isAbsolute()
-          || x.equals(Property.VFS_CLASSLOADER_CACHE_DIR.getDefaultValue()),
+      x -> x == null || x.trim().isEmpty() || new Path(x.trim()).isAbsolute(),
       "An absolute filesystem path. The filesystem depends on the property."
           + " This is the same as path, but enforces that its root is explicitly specified."),
 
@@ -138,7 +136,11 @@ public enum PropertyType {
   BOOLEAN("boolean", in(false, null, "true", "false"),
       "Has a value of either 'true' or 'false' (case-insensitive)"),
 
-  URI("uri", x -> true, "A valid URI");
+  URI("uri", x -> true, "A valid URI"),
+
+  FILENAME_EXT("file name extension", in(true, RFile.EXTENSION),
+      "One of the currently supported filename extensions for storing table data files. "
+          + "Currently, only " + RFile.EXTENSION + " is supported.");
 
   private String shortname, format;
   // Field is transient because enums are Serializable, but Predicates aren't necessarily,
