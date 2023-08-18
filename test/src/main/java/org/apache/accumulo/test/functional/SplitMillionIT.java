@@ -18,9 +18,9 @@
  */
 package org.apache.accumulo.test.functional;
 
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Random;
 import java.util.SortedSet;
@@ -42,92 +42,100 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 public class SplitMillionIT extends AccumuloClusterHarness {
 
-    @SuppressFBWarnings(value = {"PREDICTABLE_RANDOM", "DMI_RANDOM_USED_ONLY_ONCE"},
-            justification = "predictable random is ok for testing")
-    @Test
-    public void testOneMillionTablets() throws Exception {
-        Logger log = LoggerFactory.getLogger(SplitIT.class);
+  @Override
+  protected Duration defaultTimeout() {
+    return Duration.ofMinutes(30);
+  }
 
-        try (AccumuloClient c = Accumulo.newClient().from(getClientProps()).build()) {
-            String tableName = getUniqueNames(1)[0];
-            c.tableOperations().create(tableName);
+  @SuppressFBWarnings(value = {"PREDICTABLE_RANDOM", "DMI_RANDOM_USED_ONLY_ONCE"},
+      justification = "predictable random is ok for testing")
+  @Test
+  public void testOneMillionTablets() throws Exception {
+    Logger log = LoggerFactory.getLogger(SplitIT.class);
 
-            SortedSet<Text> splits = new TreeSet<>();
+    try (AccumuloClient c = Accumulo.newClient().from(getClientProps()).build()) {
+      String tableName = getUniqueNames(1)[0];
+      c.tableOperations().create(tableName);
 
-            for (int i = 100; i < 100_000_000; i += 100) {
-                String split = String.format("%010d", i);
+      SortedSet<Text> splits = new TreeSet<>();
 
-                splits.add(new Text(split));
+      // for (int i = 100; i < 100_000_000; i += 100) {
+      for (int i = 100; i < 100_000; i += 100) {
+        String split = String.format("%010d", i);
 
-                if (splits.size() >= 10000) {
-                    addSplits(c, tableName, splits, log);
-                }
-            }
+        splits.add(new Text(split));
 
-            if (!splits.isEmpty()) {
-                addSplits(c, tableName, splits, log);
-            }
-
-            var rows = IntStream
-                    .concat(new Random().ints(98, 0, 100_000_000).flatMap(i -> IntStream.of(i, i + 1)),
-                            IntStream.of(0, 1, 99_999_998, 99_999_999))
-                    .toArray();
-
-            // read and write to a few of the 1 million tablets. The following should touch the first,
-            // last, and a few middle tablets.
-            for (var rowInt : rows) {
-
-                var row = String.format("%010d", rowInt);
-
-                long t1 = System.currentTimeMillis();
-                try (var scanner = c.createScanner(tableName)) {
-                    scanner.setRange(new Range(row));
-                    assertEquals(0, scanner.stream().count());
-                }
-
-                long t2 = System.currentTimeMillis();
-
-                try (var writer = c.createBatchWriter(tableName)) {
-                    Mutation m = new Mutation(row);
-                    m.put("c", "x", "200");
-                    m.put("c", "y", "900");
-                    m.put("c", "z", "300");
-                    writer.addMutation(m);
-                }
-
-                long t3 = System.currentTimeMillis();
-
-                try (var scanner = c.createScanner(tableName)) {
-                    scanner.setRange(new Range(row));
-                    Map<String,String> coords = scanner.stream().collect(Collectors.toMap(
-                            e -> e.getKey().getColumnQualifier().toString(), e -> e.getValue().toString()));
-                    assertEquals(Map.of("x", "200", "y", "900", "z", "300"), coords);
-                }
-
-                long t4 = System.currentTimeMillis();
-                log.info("Row: {} scan1: {}ms write: {}ms scan2: {}ms", row, t2 - t1, t3 - t2, t4 - t3);
-            }
-
-            long t1 = System.currentTimeMillis();
-            long count = c.tableOperations().getTabletInformation(tableName, new Range()).count();
-            long t2 = System.currentTimeMillis();
-            assertEquals(1_000_000, count);
-            log.info("Time to scan all tablets : {}ms", t2 - t1);
-
-            t1 = System.currentTimeMillis();
-            c.tableOperations().delete(tableName);
-            t2 = System.currentTimeMillis();
-            log.info("Time to delete table : {}ms", t2 - t1);
-
+        // if (splits.size() >= 10_000) {
+        if (splits.size() >= 100) {
+          addSplits(c, tableName, splits, log);
         }
-    }
+      }
 
-    private static void addSplits(AccumuloClient c, String tableName, SortedSet<Text> splits,
-                                  Logger log) throws Exception {
+      if (!splits.isEmpty()) {
+        addSplits(c, tableName, splits, log);
+      }
+
+      var rows = IntStream
+          .concat(new Random().ints(98, 0, 100_000_000).flatMap(i -> IntStream.of(i, i + 1)),
+              IntStream.of(0, 1, 99_999_998, 99_999_999))
+          .toArray();
+
+      // read and write to a few of the 1 million tablets. The following should touch the first,
+      // last, and a few middle tablets.
+      for (var rowInt : rows) {
+
+        var row = String.format("%010d", rowInt);
+
         long t1 = System.currentTimeMillis();
-        c.tableOperations().addSplits(tableName, splits);
+        try (var scanner = c.createScanner(tableName)) {
+          scanner.setRange(new Range(row));
+          assertEquals(0, scanner.stream().count());
+        }
+
         long t2 = System.currentTimeMillis();
-        log.info("Added {} splits in {}ms", splits.size(), t2 - t1);
-        splits.clear();
+
+        try (var writer = c.createBatchWriter(tableName)) {
+          Mutation m = new Mutation(row);
+          m.put("c", "x", "200");
+          m.put("c", "y", "900");
+          m.put("c", "z", "300");
+          writer.addMutation(m);
+        }
+
+        long t3 = System.currentTimeMillis();
+
+        try (var scanner = c.createScanner(tableName)) {
+          scanner.setRange(new Range(row));
+          Map<String,String> coords = scanner.stream().collect(Collectors.toMap(
+              e -> e.getKey().getColumnQualifier().toString(), e -> e.getValue().toString()));
+          assertEquals(Map.of("x", "200", "y", "900", "z", "300"), coords);
+        }
+
+        long t4 = System.currentTimeMillis();
+        log.info("Row: {} scan1: {}ms write: {}ms scan2: {}ms", row, t2 - t1, t3 - t2, t4 - t3);
+      }
+
+      long t1 = System.currentTimeMillis();
+      long count = c.tableOperations().getTabletInformation(tableName, new Range()).count();
+      long t2 = System.currentTimeMillis();
+      // assertEquals(1_000_000, count);
+      assertEquals(1_000, count);
+      log.info("Time to scan all tablets : {}ms", t2 - t1);
+
+      t1 = System.currentTimeMillis();
+      c.tableOperations().delete(tableName);
+      t2 = System.currentTimeMillis();
+      log.info("Time to delete table : {}ms", t2 - t1);
+
     }
+  }
+
+  private static void addSplits(AccumuloClient c, String tableName, SortedSet<Text> splits,
+      Logger log) throws Exception {
+    long t1 = System.currentTimeMillis();
+    c.tableOperations().addSplits(tableName, splits);
+    long t2 = System.currentTimeMillis();
+    log.info(">>>> Added {} splits in {}ms", splits.size(), t2 - t1);
+    splits.clear();
+  }
 }

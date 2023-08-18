@@ -716,6 +716,7 @@ class FateServiceHandler implements FateService.Iface {
 
         var tableId = validateTableIdArgument(arguments.get(0), tableOp, NOT_ROOT_TABLE_ID);
         NamespaceId namespaceId = getNamespaceIdFromTableId(tableOp, tableId);
+        System.err.println(">>>> tableId: " + tableId);
 
         boolean canSplit;
 
@@ -733,6 +734,9 @@ class FateServiceHandler implements FateService.Iface {
         var endRow = ByteBufferUtil.toText(arguments.get(1));
         var prevEndRow = ByteBufferUtil.toText(arguments.get(2));
 
+        System.err.println(">>>> endRow: " + endRow);
+        System.err.println(">>>> prevEndRow: " + prevEndRow);
+
         endRow = endRow.getLength() == 0 ? null : endRow;
         prevEndRow = prevEndRow.getLength() == 0 ? null : prevEndRow;
 
@@ -740,6 +744,8 @@ class FateServiceHandler implements FateService.Iface {
         // same
         SortedSet<Text> splits = arguments.subList(SPLIT_OFFSET, arguments.size()).stream()
             .map(ByteBufferUtil::toText).collect(Collectors.toCollection(TreeSet::new));
+        log.info(">>>> TABLE_SPLIT: {}", splits.size());
+        splits.forEach(p -> log.info("\t{}", p));
 
         KeyExtent extent = new KeyExtent(tableId, endRow, prevEndRow);
 
