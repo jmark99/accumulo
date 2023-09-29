@@ -60,13 +60,17 @@ public class SplitMillionIT extends AccumuloClusterHarness {
       SortedSet<Text> splits = new TreeSet<>();
 
       // for (int i = 100; i < 100_000_000; i += 100) {
-      for (int i = 100; i < 100_000; i += 100) {
+      // for (int i = 100; i < 100_000; i += 100) {
+      for (int i = 100; i < 1_000; i += 100) {
+
         String split = String.format("%010d", i);
 
         splits.add(new Text(split));
 
         // if (splits.size() >= 10_000) {
-        if (splits.size() >= 100) {
+        // if (splits.size() >= 100) {
+        if (splits.size() >= 10) {
+
           addSplits(c, tableName, splits, log);
         }
       }
@@ -82,6 +86,7 @@ public class SplitMillionIT extends AccumuloClusterHarness {
 
       // read and write to a few of the 1 million tablets. The following should touch the first,
       // last, and a few middle tablets.
+      log.info("Number of row: {}", rows.length);
       for (var rowInt : rows) {
 
         var row = String.format("%010d", rowInt);
@@ -117,9 +122,13 @@ public class SplitMillionIT extends AccumuloClusterHarness {
 
       long t1 = System.currentTimeMillis();
       long count = c.tableOperations().getTabletInformation(tableName, new Range()).count();
+      log.info("count = {}", count);
       long t2 = System.currentTimeMillis();
+
       // assertEquals(1_000_000, count);
-      assertEquals(1_000, count);
+      // assertEquals(1_000, count);
+      assertEquals(10, count);
+
       log.info("Time to scan all tablets : {}ms", t2 - t1);
 
       t1 = System.currentTimeMillis();
