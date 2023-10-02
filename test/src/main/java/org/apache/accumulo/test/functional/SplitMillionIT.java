@@ -71,11 +71,13 @@ public class SplitMillionIT extends AccumuloClusterHarness {
         // if (splits.size() >= 100) {
         if (splits.size() >= 10) {
 
+          log.info(">>>> adding splits >= 10");
           addSplits(c, tableName, splits, log);
         }
       }
 
       if (!splits.isEmpty()) {
+        log.info(">>>> addSplits not empty");
         addSplits(c, tableName, splits, log);
       }
 
