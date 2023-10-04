@@ -35,10 +35,10 @@ import java.util.function.Predicate;
 
 import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
+import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.admin.NewTableConfiguration;
-import org.apache.accumulo.core.clientImpl.AccumuloServerException;
 import org.apache.accumulo.core.clientImpl.Namespace;
 import org.apache.accumulo.core.conf.ConfigurationTypeHelper;
 import org.apache.accumulo.core.conf.Property;
@@ -99,7 +99,7 @@ public class LargeSplitRowIT extends ConfigurableMacBase {
       partitionKeys.add(new Text(data));
 
       // try to add the split point that is too large, if the split point is created the test fails.
-      assertThrows(AccumuloServerException.class,
+      assertThrows(AccumuloException.class,
           () -> client.tableOperations().addSplits(tableName, partitionKeys));
 
       // Make sure that the information that was written to the table before we tried to add the
