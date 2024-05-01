@@ -555,6 +555,9 @@ public class ShellIT extends SharedMiniClusterBase {
         setCommand = "config -s ";
       }
 
+      // ADD TEST to SET to EMPTY and then verify if property is still in ZooKEEPER or NOT
+
+
       if (Property.isValidTablePropertyKey(property.getKey())) {
         if (property.isDeprecated()) {
           setCommand = "config --force -t " + testTable + " -s ";
