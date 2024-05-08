@@ -476,6 +476,49 @@ public class ShellIT extends SharedMiniClusterBase {
   }
 
   @Test
+  void configEmptyPropertyTest() throws IOException {
+    Shell.log.info(">>>> Starting configEmptyPropertyTest....");
+
+    String metadataTable = "accumulo.metadata";
+    String table = "testTable";
+    try {
+      // Modify a config property for metadata table
+      exec("table accumulo.metadata", true);
+
+      // exec("createtable " + testTable, true);
+
+
+      // for (Property property : Property.values()) {
+      // PropertyType propertyType = property.getType();
+      // Shell.log.info(">>>> property: {} : {} : {}: {}", property.getKey(), property.name(),
+      // property.getType(), property.getDefaultValue());
+      //
+      // if (!Property.isValidZooPropertyKey(property.getKey())) {
+      // Shell.log.info(">>>> Property {} with type {} cannot be modified by shell",
+      // property.getKey(), propertyType);
+      // // continue;
+      // }
+      // }
+      log.info(">>>> see if property exists");
+      exec("config -t accumulo.metadata -f minc", true);
+
+      log.info(">>>> Update property to new value");
+
+      // exec("config -t " + testTable + " -s table.iterator.minc.vers.opt.maxVersions=2", true);
+      // // exec(setCommand + "table.split.threshold" + "=" + "128M", true);
+      // log.info(">>>> call config to get properties to see if it was changed.");
+      // exec("config -t accumulo.metadata -f minc", true);
+
+      exec("config -t " + metadataTable + " -s table.iterator.minc.vers.opt.maxVersions=", true);
+      log.info(">>>> call config to get properties to see if it was changed.");
+      exec("config -t accumulo.metadata -f minc", true);
+
+    } finally {
+      // exec("deletetable " + testTable + " -f", true);
+    }
+  }
+
+  @Test
   void configTest() throws IOException {
     Shell.log.debug("Starting config property type test -------------------------");
 
@@ -556,7 +599,6 @@ public class ShellIT extends SharedMiniClusterBase {
       }
 
       // ADD TEST to SET to EMPTY and then verify if property is still in ZooKEEPER or NOT
-
 
       if (Property.isValidTablePropertyKey(property.getKey())) {
         if (property.isDeprecated()) {

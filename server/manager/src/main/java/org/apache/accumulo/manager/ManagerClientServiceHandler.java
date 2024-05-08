@@ -555,13 +555,17 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
     }
 
     try {
-      if (value == null || value.isEmpty()) {
-        PropUtil.removeProperties(manager.getContext(),
-            TablePropKey.of(manager.getContext(), tableId), List.of(property));
-      } else {
-        PropUtil.setProperties(manager.getContext(), TablePropKey.of(manager.getContext(), tableId),
-            Map.of(property, value));
-      }
+      log.info(">>>> <<<<");
+      log.info(">>>> value == null || value.isEmpty()");
+      // if (value == null || value.isEmpty()) {
+      // log.info(">>>> removeProperties");
+      // PropUtil.removeProperties(manager.getContext(),
+      // TablePropKey.of(manager.getContext(), tableId), List.of(property));
+      // } else {
+      log.info(">>>> setProperties");
+      PropUtil.setProperties(manager.getContext(), TablePropKey.of(manager.getContext(), tableId),
+          Map.of(property, value));
+      // }
     } catch (IllegalStateException ex) {
       log.warn("Invalid table property, tried to set: tableId: " + tableId.canonical() + " to: "
           + property + "=" + value);
