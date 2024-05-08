@@ -101,6 +101,15 @@ public class ScanServerTest {
       return reservation;
     }
 
+    @Override
+    ScanReservation reserveFilesInstrumented(Map<KeyExtent,List<TRange>> extents) {
+      return reservation;
+    }
+
+    @Override
+    ScanReservation reserveFilesInstrumented(long scanId) {
+      return reservation;
+    }
   }
 
   private ThriftScanClientHandler handler;
