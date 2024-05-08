@@ -49,16 +49,12 @@ import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.LineReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSortedMap;
 
 public class ConfigCommand extends Command {
   private Option tableOpt, deleteOpt, setOpt, forceOpt, filterOpt, filterWithValuesOpt,
       disablePaginationOpt, outputFileOpt, namespaceOpt;
-
-  private static final Logger log = LoggerFactory.getLogger(ConfigCommand.class);
 
   private int COL1 = 10, COL2 = 7;
   private LineReader reader;
@@ -89,18 +85,14 @@ public class ConfigCommand extends Command {
     if (tableName != null && !shellState.getAccumuloClient().tableOperations().exists(tableName)) {
       throw new TableNotFoundException(null, tableName, null);
     }
-    log.info(">>>> tableName: {}", tableName);
     final String namespace = cl.getOptionValue(namespaceOpt.getOpt());
-    log.info(">>>> namespace: {}", namespace);
     if (namespace != null
         && !shellState.getAccumuloClient().namespaceOperations().exists(namespace)) {
       throw new NamespaceNotFoundException(null, namespace, null);
     }
     if (cl.hasOption(deleteOpt.getOpt())) {
-      log.info(">>>> deleting property from table...");
       // delete property from table
       String property = cl.getOptionValue(deleteOpt.getOpt());
-      log.info(">>>> \tproperty: {}", property);
       if (property.contains("=")) {
         throw new BadArgumentException("Invalid '=' operator in delete operation.", fullCommand,
             fullCommand.indexOf('='));
@@ -128,9 +120,7 @@ public class ConfigCommand extends Command {
       }
     } else if (cl.hasOption(setOpt.getOpt())) {
       // set property on table
-      log.info(">>>> setting property on a table...");
       String property = cl.getOptionValue(setOpt.getOpt());
-      log.info(">>>> \tproperty: {}", property);
       String value;
       if (!property.contains("=")) {
         throw new BadArgumentException("Missing '=' operator in set operation.", fullCommand,
@@ -139,8 +129,6 @@ public class ConfigCommand extends Command {
       final String[] pair = property.split("=", 2);
       property = pair[0];
       value = pair[1];
-      log.info(">>>> \tproperty: {}", pair[0]);
-      log.info(">>>> \tvalue:    >{}<", value);
 
       // check for deprecation
       var theProp = Property.getPropertyByKey(property);
@@ -155,15 +143,12 @@ public class ConfigCommand extends Command {
       }
       if (tableName != null) {
         if (!Property.isValidTablePropertyKey(property)) {
-          log.info(">>>> property is valid table property");
           throw new BadArgumentException("Invalid per-table property.", fullCommand,
               fullCommand.indexOf(property));
         }
         if (property.equals(Property.TABLE_DEFAULT_SCANTIME_VISIBILITY.getKey())) {
-          log.info(">>>> WHY am I HERE");
           new ColumnVisibility(value); // validate that it is a valid expression
         }
-        log.info(">>>> Setting table property here:");
         shellState.getAccumuloClient().tableOperations().setProperty(tableName, property, value);
         Shell.log.debug("Successfully set table configuration option.");
       } else if (namespace != null) {
@@ -174,7 +159,6 @@ public class ConfigCommand extends Command {
         if (property.equals(Property.TABLE_DEFAULT_SCANTIME_VISIBILITY.getKey())) {
           new ColumnVisibility(value); // validate that it is a valid expression
         }
-        log.info(">>>> Setting namespace property here:");
         shellState.getAccumuloClient().namespaceOperations().setProperty(namespace, property,
             value);
         Shell.log.debug("Successfully set table configuration option.");
@@ -183,14 +167,12 @@ public class ConfigCommand extends Command {
           throw new BadArgumentException("Property cannot be modified in zookeeper", fullCommand,
               fullCommand.indexOf(property));
         }
-        log.info(">>>> Setting system property here:");
         shellState.getAccumuloClient().instanceOperations().setProperty(property, value);
         Shell.log.debug("Successfully set system configuration option.");
       }
     } else {
       boolean warned = false;
       // display properties
-      log.info(">>>> display properties...");
       final TreeMap<String,String> systemConfig = new TreeMap<>();
       try {
         systemConfig

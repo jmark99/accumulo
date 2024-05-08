@@ -554,18 +554,15 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
       throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
     }
 
+    // verify table property and if so, then do not remove ????
     try {
-      log.info(">>>> <<<<");
-      log.info(">>>> value == null || value.isEmpty()");
-      // if (value == null || value.isEmpty()) {
-      // log.info(">>>> removeProperties");
-      // PropUtil.removeProperties(manager.getContext(),
-      // TablePropKey.of(manager.getContext(), tableId), List.of(property));
-      // } else {
-      log.info(">>>> setProperties");
-      PropUtil.setProperties(manager.getContext(), TablePropKey.of(manager.getContext(), tableId),
-          Map.of(property, value));
-      // }
+      if (value == null || value.isEmpty()) {
+        PropUtil.removeProperties(manager.getContext(),
+                TablePropKey.of(manager.getContext(), tableId), List.of(property));
+      } else {
+        PropUtil.setProperties(manager.getContext(), TablePropKey.of(manager.getContext(), tableId),
+                Map.of(property, value));
+      }
     } catch (IllegalStateException ex) {
       log.warn("Invalid table property, tried to set: tableId: " + tableId.canonical() + " to: "
           + property + "=" + value);

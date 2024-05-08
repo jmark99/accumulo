@@ -1216,7 +1216,7 @@ public enum Property {
       "1.3.5"),
   TABLE_INDEXCACHE_ENABLED("table.cache.index.enable", "true", PropertyType.BOOLEAN,
       "Determines whether index block cache is enabled for a table.", "1.3.5"),
-  TABLE_BLOCKCACHE_ENABLED("table.cache.block.enable", "false", PropertyType.BOOLEAN,
+  TABLE_BLOCKCACHE_ENABLED("", "false", PropertyType.BOOLEAN,
       "Determines whether data block cache is enabled for a table.", "1.3.5"),
   TABLE_ITERATOR_PREFIX("table.iterator.", null, PropertyType.PREFIX,
       "Properties in this category specify iterators that are applied at"
