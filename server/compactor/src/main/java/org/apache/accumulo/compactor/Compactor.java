@@ -23,6 +23,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 import static org.apache.accumulo.core.util.UtilWaitThread.sleepUninterruptibly;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -65,6 +66,8 @@ import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockLossReason;
 import org.apache.accumulo.core.fate.zookeeper.ServiceLock.LockWatcher;
 import org.apache.accumulo.core.fate.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.core.fate.zookeeper.ZooUtil.NodeExistsPolicy;
+import org.apache.accumulo.core.file.FileOperations;
+import org.apache.accumulo.core.file.FileSKVIterator;
 import org.apache.accumulo.core.iteratorsImpl.system.SystemIteratorUtil;
 import org.apache.accumulo.core.metadata.StoredTabletFile;
 import org.apache.accumulo.core.metadata.TabletFile;
@@ -77,6 +80,7 @@ import org.apache.accumulo.core.metrics.MetricsProducer;
 import org.apache.accumulo.core.rpc.ThriftUtil;
 import org.apache.accumulo.core.rpc.clients.ThriftClientTypes;
 import org.apache.accumulo.core.securityImpl.thrift.TCredentials;
+import org.apache.accumulo.core.spi.crypto.CryptoService;
 import org.apache.accumulo.core.tabletserver.thrift.ActiveCompaction;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionKind;
 import org.apache.accumulo.core.tabletserver.thrift.TCompactionStats;
@@ -104,6 +108,7 @@ import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.rpc.ServerAddress;
 import org.apache.accumulo.server.rpc.TServerUtils;
 import org.apache.accumulo.server.rpc.ThriftProcessorTypes;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransportException;
@@ -114,6 +119,7 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.Parameter;
 import com.google.common.base.Preconditions;
 
+import io.micrometer.core.instrument.FunctionCounter;
 import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -157,8 +163,23 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
     queueName = opts.getQueueName();
   }
 
+  private long getTotalEntriesRead() {
+    return FileCompactor.getTotalEntriesRead();
+  }
+
+  private long getTotalEntriesWritten() {
+    return FileCompactor.getTotalEntriesWritten();
+  }
+
   @Override
   public void registerMetrics(MeterRegistry registry) {
+    FunctionCounter.builder(METRICS_COMPACTOR_ENTRIES_READ, this, Compactor::getTotalEntriesRead)
+        .description("Number of entries read by all compactions that have run on this compactor")
+        .register(registry);
+    FunctionCounter
+        .builder(METRICS_COMPACTOR_ENTRIES_WRITTEN, this, Compactor::getTotalEntriesWritten)
+        .description("Number of entries written by all compactions that have run on this compactor")
+        .register(registry);
     LongTaskTimer timer = LongTaskTimer.builder(METRICS_COMPACTOR_MAJC_STUCK)
         .description("Number and duration of stuck major compactions").register(registry);
     CompactionWatcher.setTimer(timer);
@@ -501,9 +522,15 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
 
         final Map<StoredTabletFile,DataFileValue> files = new TreeMap<>();
         job.getFiles().forEach(f -> {
-          files.put(new StoredTabletFile(f.getMetadataFileEntry()),
-              new DataFileValue(f.getSize(), f.getEntries(), f.getTimestamp()));
-          totalInputEntries.add(f.getEntries());
+          long estEntries = f.getEntries();
+          StoredTabletFile stf = new StoredTabletFile(f.getMetadataFileEntry());
+          // This happens with bulk import files
+          if (estEntries == 0) {
+            estEntries =
+                estimateOverlappingEntries(extent, stf, aConfig, tConfig.getCryptoService());
+          }
+          files.put(stf, new DataFileValue(f.getSize(), estEntries, f.getTimestamp()));
+          totalInputEntries.add(estEntries);
           totalInputBytes.add(f.getSize());
         });
 
@@ -532,6 +559,7 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
         updateCompactionState(job, update2);
       } catch (FileCompactor.CompactionCanceledException cce) {
         LOG.debug("Compaction canceled {}", job.getExternalCompactionId());
+        err.set(cce);
       } catch (Exception e) {
         KeyExtent fromThriftExtent = KeyExtent.fromThrift(job.getExtent());
         LOG.error("Compaction failed: id: {}, extent: {}", job.getExternalCompactionId(),
@@ -542,6 +570,27 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
         Preconditions.checkState(compactionRunning.compareAndSet(true, false));
       }
     };
+  }
+
+  /**
+   * @param extent the extent
+   * @param file the file to read from
+   * @param tableConf the table configuration
+   * @param cryptoService the crypto service
+   * @return an estimate of the number of key/value entries in the file that overlap the extent
+   */
+  private long estimateOverlappingEntries(KeyExtent extent, StoredTabletFile file,
+      AccumuloConfiguration tableConf, CryptoService cryptoService) {
+    FileOperations fileFactory = FileOperations.getInstance();
+    FileSystem fs = getContext().getVolumeManager().getFileSystemByPath(file.getPath());
+
+    try (FileSKVIterator reader =
+        fileFactory.newReaderBuilder().forFile(file.getPathStr(), fs, fs.getConf(), cryptoService)
+            .withTableConfiguration(tableConf).dropCachesBehind().build()) {
+      return reader.estimateOverlappingEntries(extent);
+    } catch (IOException ioe) {
+      throw new UncheckedIOException(ioe);
+    }
   }
 
   /**
@@ -658,20 +707,20 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
               // Compaction has started. There should only be one in the list
               CompactionInfo info = running.get(0);
               if (info != null) {
+                final long entriesRead = info.getEntriesRead();
+                final long entriesWritten = info.getEntriesWritten();
                 if (inputEntries > 0) {
-                  percentComplete =
-                      Float.toString((info.getEntriesRead() / (float) inputEntries) * 100);
+                  percentComplete = Float.toString((entriesRead / (float) inputEntries) * 100);
                 }
                 String message = String.format(
                     "Compaction in progress, read %d of %d input entries ( %s %s ), written %d entries",
-                    info.getEntriesRead(), inputEntries, percentComplete, "%",
-                    info.getEntriesWritten());
+                    entriesRead, inputEntries, percentComplete, "%", entriesWritten);
                 watcher.run();
                 try {
                   LOG.debug("Updating coordinator with compaction progress: {}.", message);
                   TCompactionStatusUpdate update =
                       new TCompactionStatusUpdate(TCompactionState.IN_PROGRESS, message,
-                          inputEntries, info.getEntriesRead(), info.getEntriesWritten());
+                          inputEntries, entriesRead, entriesWritten);
                   updateCompactionState(job, update);
                 } catch (RetriesExceededException e) {
                   LOG.warn("Error updating coordinator with compaction progress, error: {}",
