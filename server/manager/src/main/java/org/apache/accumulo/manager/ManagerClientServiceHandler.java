@@ -255,6 +255,7 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
   public void setTableProperty(TInfo info, TCredentials credentials, String tableName,
       String property, String value)
       throws ThriftSecurityException, ThriftTableOperationException, ThriftPropertyException {
+    log.info(">>>> MCSH::setTableProperty");
     alterTableProperty(credentials, tableName, property, value, TableOperation.SET_PROPERTY);
   }
 
@@ -548,20 +549,31 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
   private void alterTableProperty(TCredentials c, String tableName, String property, String value,
       TableOperation op)
       throws ThriftSecurityException, ThriftTableOperationException, ThriftPropertyException {
+    log.info(">>>> MCSH::alterTableProperty");
     final TableId tableId = ClientServiceHandler.checkTableId(manager.getContext(), tableName, op);
+    log.info(">>>> tableId:{}", tableId);
     NamespaceId namespaceId = getNamespaceIdFromTableId(op, tableId);
+    log.info(">>>> namespaceId: {}", namespaceId);
     if (!manager.security.canAlterTable(c, tableId, namespaceId)) {
       throw new ThriftSecurityException(c.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
     }
 
     // verify table property and if so, then do not remove ????
     try {
+      log.info(">>>> value: '{}'", value);
       if (value == null || value.isEmpty()) {
+        if (value == null) {
+          log.info(">>>> value is null");
+        } else if (value.isEmpty()) {
+          log.info(">>>> value is Empty");
+        }
+        log.info(">>>> remove property: {}", property);
         PropUtil.removeProperties(manager.getContext(),
-                TablePropKey.of(manager.getContext(), tableId), List.of(property));
+            TablePropKey.of(manager.getContext(), tableId), List.of(property));
       } else {
+        log.info(">>>> setProperty: {}:{}", property, value);
         PropUtil.setProperties(manager.getContext(), TablePropKey.of(manager.getContext(), tableId),
-                Map.of(property, value));
+            Map.of(property, value));
       }
     } catch (IllegalStateException ex) {
       log.warn("Invalid table property, tried to set: tableId: " + tableId.canonical() + " to: "

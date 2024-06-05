@@ -49,10 +49,14 @@ import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.LineReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSortedMap;
 
 public class ConfigCommand extends Command {
+
+  private static final Logger log = LoggerFactory.getLogger(ConfigCommand.class);
   private Option tableOpt, deleteOpt, setOpt, forceOpt, filterOpt, filterWithValuesOpt,
       disablePaginationOpt, outputFileOpt, namespaceOpt;
 
@@ -119,6 +123,7 @@ public class ConfigCommand extends Command {
         Shell.log.debug("Successfully deleted system configuration option.");
       }
     } else if (cl.hasOption(setOpt.getOpt())) {
+      log.info(">>>> Set Property on table");
       // set property on table
       String property = cl.getOptionValue(setOpt.getOpt());
       String value;

@@ -485,7 +485,7 @@ public class ShellIT extends SharedMiniClusterBase {
       var tableProperty = "table.split.threshold";
 
       // Modify a config property for metadata table
-      //exec("table " + metadataTable, true);
+      // exec("table " + metadataTable, true);
 
       // verify the property of interest exists
       exec("config -t " + metadataTable + " -f " + tableProperty, true);
@@ -501,7 +501,6 @@ public class ShellIT extends SharedMiniClusterBase {
 
       // exec("createtable " + testTable, true);
 
-
       // for (Property property : Property.values()) {
       // PropertyType propertyType = property.getType();
       // Shell.log.info(">>>> property: {} : {} : {}: {}", property.getKey(), property.name(),
@@ -513,19 +512,19 @@ public class ShellIT extends SharedMiniClusterBase {
       // // continue;
       // }
       // }
-      //log.info(">>>> see if property exists");
-      //exec("config -t accumulo.metadata -f minc", true);
+      // log.info(">>>> see if property exists");
+      // exec("config -t accumulo.metadata -f minc", true);
 
-      //log.info(">>>> Update property to new value");
+      // log.info(">>>> Update property to new value");
 
       // exec("config -t " + testTable + " -s table.iterator.minc.vers.opt.maxVersions=2", true);
       // // exec(setCommand + "table.split.threshold" + "=" + "128M", true);
       // log.info(">>>> call config to get properties to see if it was changed.");
       // exec("config -t accumulo.metadata -f minc", true);
 
-      //exec("config -t " + metadataTable + " -s table.iterator.minc.vers.opt.maxVersions=", true);
-      //log.info(">>>> call config to get properties to see if it was changed.");
-      //exec("config -t accumulo.metadata -f minc", true);
+      // exec("config -t " + metadataTable + " -s table.iterator.minc.vers.opt.maxVersions=", true);
+      // log.info(">>>> call config to get properties to see if it was changed.");
+      // exec("config -t accumulo.metadata -f minc", true);
 
     } finally {
       // exec("deletetable " + testTable + " -f", true);
