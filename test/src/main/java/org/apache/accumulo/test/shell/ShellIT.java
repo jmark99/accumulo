@@ -476,6 +476,25 @@ public class ShellIT extends SharedMiniClusterBase {
   }
 
   @Test
+  void configBooleanPropertyTest() throws IOException {
+    Shell.log.info(">>>> Starting configBooleanPropertyTest...");
+
+    String table = "testBoolean";
+    String configTable = "config -t " + table + " ";
+    var prop = "table.bloom.enabled";
+    try {
+      exec("createtable " + table);
+      // exec(configTable + "-f " + prop, true);
+      exec(configTable + "-s " + prop + "=false", true);
+      // exec(configTable + "-s " + prop + "=true", true);
+      // exec(configTable + "-s " + prop + "=junk", false);
+      // exec(configTable + "-s " + prop + "=\"\"");
+    } finally {
+      exec("deletetable " + table + " -f", true);
+    }
+  }
+
+  @Test
   void configEmptyPropertyTest() throws IOException {
     Shell.log.info(">>>> Starting configEmptyPropertyTest....");
 
@@ -498,9 +517,7 @@ public class ShellIT extends SharedMiniClusterBase {
       // now set to a blank field and repeat; verify the property is still in zookeeper
       exec("config -t " + metadataTable + " -s " + tableProperty + "=", true);
       exec("config -t " + metadataTable + " -f " + tableProperty, true);
-
       // exec("createtable " + testTable, true);
-
       // for (Property property : Property.values()) {
       // PropertyType propertyType = property.getType();
       // Shell.log.info(">>>> property: {} : {} : {}: {}", property.getKey(), property.name(),
@@ -514,18 +531,14 @@ public class ShellIT extends SharedMiniClusterBase {
       // }
       // log.info(">>>> see if property exists");
       // exec("config -t accumulo.metadata -f minc", true);
-
       // log.info(">>>> Update property to new value");
-
       // exec("config -t " + testTable + " -s table.iterator.minc.vers.opt.maxVersions=2", true);
-      // // exec(setCommand + "table.split.threshold" + "=" + "128M", true);
+      // exec(setCommand + "table.split.threshold" + "=" + "128M", true);
       // log.info(">>>> call config to get properties to see if it was changed.");
       // exec("config -t accumulo.metadata -f minc", true);
-
       // exec("config -t " + metadataTable + " -s table.iterator.minc.vers.opt.maxVersions=", true);
       // log.info(">>>> call config to get properties to see if it was changed.");
       // exec("config -t accumulo.metadata -f minc", true);
-
     } finally {
       // exec("deletetable " + testTable + " -f", true);
     }

@@ -560,7 +560,7 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
 
     // verify table property and if so, then do not remove ????
     try {
-      log.info(">>>> value: '{}'", value);
+      log.info(">>>> value: >{}<", value);
       if (value == null || value.isEmpty()) {
         if (value == null) {
           log.info(">>>> value is null");

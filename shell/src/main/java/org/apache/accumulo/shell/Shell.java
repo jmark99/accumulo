@@ -708,6 +708,7 @@ public class Shell extends ShellOptions implements KeywordExecutable {
 
   public void execCommand(String input, boolean ignoreAuthTimeout, boolean echoPrompt) {
     audit.info("{}", sanitize(getDefaultPrompt() + input));
+    log.info(">>>> ------------ {}", sanitize(getDefaultPrompt() + input));
     if (echoPrompt) {
       writer.print(getDefaultPrompt());
       writer.println(input);
@@ -781,8 +782,12 @@ public class Shell extends ShellOptions implements KeywordExecutable {
         // Parse the string using the given options
         CommandLine cl = new DefaultParser().parse(parseOpts, fields);
 
+        cl.getArgList().forEach(p -> log.info(">>>> arg: {}", p));
+
         int actualArgLen = cl.getArgs().length;
         int expectedArgLen = sc.numArgs();
+        log.info(">>>> actualArgLen:   {}", actualArgLen);
+        log.info(">>>> expectedArgLen: {}", expectedArgLen);
         if (cl.hasOption(helpOption)) {
           // Display help if asked to; otherwise execute the command
           sc.printHelp(this);
