@@ -533,7 +533,7 @@ public class ShellIT extends SharedMiniClusterBase {
       // exec("config -t accumulo.metadata -f minc", true);
       // log.info(">>>> Update property to new value");
       // exec("config -t " + testTable + " -s table.iterator.minc.vers.opt.maxVersions=2", true);
-      // exec(setCommand + "table.split.threshold" + "=" + "128M", true);
+      // exec("config -t accumulo.metadata -s table.split.threshold=128M", true);
       // log.info(">>>> call config to get properties to see if it was changed.");
       // exec("config -t accumulo.metadata -f minc", true);
       // exec("config -t " + metadataTable + " -s table.iterator.minc.vers.opt.maxVersions=", true);
