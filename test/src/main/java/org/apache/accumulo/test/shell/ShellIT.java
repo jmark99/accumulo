@@ -481,14 +481,15 @@ public class ShellIT extends SharedMiniClusterBase {
 
     String table = "testBoolean";
     String configTable = "config -t " + table + " ";
-    var prop = "table.bloom.enabled";
+//    var prop = "table.bloom.enabled";
+    var prop = "table.iterator.majc.vers.opt.maxVersions";
     try {
       exec("createtable " + table);
-      // exec(configTable + "-f " + prop, true);
-      exec(configTable + "-s " + prop + "=false", true);
-      // exec(configTable + "-s " + prop + "=true", true);
-      // exec(configTable + "-s " + prop + "=junk", false);
-      // exec(configTable + "-s " + prop + "=\"\"");
+//      exec(configTable + "-f " + prop, true);
+//      exec(configTable + "-s " + prop + "=true", true);
+//      exec(configTable + "-s " + prop + "=false", true);
+//      exec(configTable + "-s " + prop + "=junk", false);
+      exec(configTable + "-s " + prop + "=\"\"", false);
     } finally {
       exec("deletetable " + table + " -f", true);
     }
