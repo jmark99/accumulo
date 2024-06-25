@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.UnknownHostException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import org.apache.accumulo.core.compaction.thrift.CompactionCoordinatorService.C
 import org.apache.accumulo.core.compaction.thrift.CompactorService;
 import org.apache.accumulo.core.compaction.thrift.TCompactionState;
 import org.apache.accumulo.core.compaction.thrift.TCompactionStatusUpdate;
+import org.apache.accumulo.core.compaction.thrift.TNextCompactionJob;
 import org.apache.accumulo.core.compaction.thrift.UnknownCompactionIdException;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.ConfigurationCopy;
@@ -120,6 +122,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.base.Preconditions;
 
 import io.micrometer.core.instrument.FunctionCounter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -133,6 +136,8 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
     void initialize() throws RetriesExceededException;
 
     AtomicReference<FileCompactor> getFileCompactor();
+
+    Duration getCompactionAge();
   }
 
   private static final SecureRandom random = new SecureRandom();
@@ -193,6 +198,13 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
     LongTaskTimer timer = LongTaskTimer.builder(METRICS_COMPACTOR_MAJC_STUCK)
         .description("Number and duration of stuck major compactions").register(registry);
     CompactionWatcher.setTimer(timer);
+
+    Gauge
+        .builder(METRICS_COMPACTOR_BUSY, this.compactionRunning,
+            isRunning -> isRunning.get() ? 1 : 0)
+        .description(
+            "Indicates if the compactor is busy or not. The value will be 0 when idle and 1 when busy.")
+        .register(registry);
   }
 
   protected void startGCLogger(ScheduledThreadPoolExecutor schedExecutor) {
@@ -446,13 +458,13 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
    * @return CompactionJob
    * @throws RetriesExceededException thrown when retries have been exceeded
    */
-  protected TExternalCompactionJob getNextJob(Supplier<UUID> uuid) throws RetriesExceededException {
+  protected TNextCompactionJob getNextJob(Supplier<UUID> uuid) throws RetriesExceededException {
     final long startingWaitTime =
         getConfiguration().getTimeInMillis(Property.COMPACTOR_MIN_JOB_WAIT_TIME);
     final long maxWaitTime =
         getConfiguration().getTimeInMillis(Property.COMPACTOR_MAX_JOB_WAIT_TIME);
 
-    RetryableThriftCall<TExternalCompactionJob> nextJobThriftCall =
+    RetryableThriftCall<TNextCompactionJob> nextJobThriftCall =
         new RetryableThriftCall<>(startingWaitTime, maxWaitTime, 0, () -> {
           Client coordinatorClient = getCoordinatorClient();
           try {
@@ -507,13 +519,15 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
 
     return new FileCompactorRunnable() {
 
-      private AtomicReference<FileCompactor> compactor = new AtomicReference<>();
+      private final AtomicReference<FileCompactor> compactor = new AtomicReference<>();
+      private volatile long startTimeNanos = -1;
 
       @Override
       public void initialize() throws RetriesExceededException {
         LOG.info("Starting up compaction runnable for job: {}", job);
-        TCompactionStatusUpdate update =
-            new TCompactionStatusUpdate(TCompactionState.STARTED, "Compaction started", -1, -1, -1);
+        this.startTimeNanos = System.nanoTime();
+        TCompactionStatusUpdate update = new TCompactionStatusUpdate(TCompactionState.STARTED,
+            "Compaction started", -1, -1, -1, getCompactionAge().toNanos());
         updateCompactionState(job, update);
         final var extent = KeyExtent.fromThrift(job.getExtent());
         final AccumuloConfiguration aConfig;
@@ -581,7 +595,7 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
           LOG.info("Compaction completed successfully {} ", job.getExternalCompactionId());
           // Update state when completed
           TCompactionStatusUpdate update2 = new TCompactionStatusUpdate(TCompactionState.SUCCEEDED,
-              "Compaction completed successfully", -1, -1, -1);
+              "Compaction completed successfully", -1, -1, -1, this.getCompactionAge().toNanos());
           updateCompactionState(job, update2);
         } catch (FileCompactor.CompactionCanceledException cce) {
           LOG.debug("Compaction canceled {}", job.getExternalCompactionId());
@@ -595,6 +609,15 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
           stopped.countDown();
           Preconditions.checkState(compactionRunning.compareAndSet(true, false));
         }
+      }
+
+      @Override
+      public Duration getCompactionAge() {
+        if (startTimeNanos == -1) {
+          // compaction hasn't started yet
+          return Duration.ZERO;
+        }
+        return Duration.ofNanos(System.nanoTime() - startTimeNanos);
       }
 
     };
@@ -636,9 +659,8 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
     return UUID::randomUUID;
   }
 
-  protected long getWaitTimeBetweenCompactionChecks() {
+  protected long getWaitTimeBetweenCompactionChecks(int numCompactors) {
     // get the total number of compactors assigned to this queue
-    int numCompactors = ExternalCompactionUtil.countCompactors(queueName, getContext());
     long minWait = getConfiguration().getTimeInMillis(Property.COMPACTOR_MIN_JOB_WAIT_TIME);
     // Aim for around 3 compactors checking in per min wait time.
     long sleepTime = numCompactors * minWait / 3;
@@ -694,10 +716,11 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
 
         TExternalCompactionJob job;
         try {
-          job = getNextJob(getNextId());
+          TNextCompactionJob next = getNextJob(getNextId());
+          job = next.getJob();
           if (!job.isSetExternalCompactionId()) {
             LOG.trace("No external compactions in queue {}", this.queueName);
-            UtilWaitThread.sleep(getWaitTimeBetweenCompactionChecks());
+            UtilWaitThread.sleep(getWaitTimeBetweenCompactionChecks(next.getCompactorCount()));
             continue;
           }
           if (!job.getExternalCompactionId().equals(currentCompactionId.get().toString())) {
@@ -752,9 +775,9 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
                 watcher.run();
                 try {
                   LOG.debug("Updating coordinator with compaction progress: {}.", message);
-                  TCompactionStatusUpdate update =
-                      new TCompactionStatusUpdate(TCompactionState.IN_PROGRESS, message,
-                          inputEntries, entriesRead, entriesWritten);
+                  TCompactionStatusUpdate update = new TCompactionStatusUpdate(
+                      TCompactionState.IN_PROGRESS, message, inputEntries, entriesRead,
+                      entriesWritten, fcr.getCompactionAge().toNanos());
                   updateCompactionState(job, update);
                 } catch (RetriesExceededException e) {
                   LOG.warn("Error updating coordinator with compaction progress, error: {}",
@@ -781,8 +804,9 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
               || (err.get() != null && err.get().getClass().equals(InterruptedException.class))) {
             LOG.warn("Compaction thread was interrupted, sending CANCELLED state");
             try {
-              TCompactionStatusUpdate update = new TCompactionStatusUpdate(
-                  TCompactionState.CANCELLED, "Compaction cancelled", -1, -1, -1);
+              TCompactionStatusUpdate update =
+                  new TCompactionStatusUpdate(TCompactionState.CANCELLED, "Compaction cancelled",
+                      -1, -1, -1, fcr.getCompactionAge().toNanos());
               updateCompactionState(job, update);
               updateCompactionFailed(job);
             } catch (RetriesExceededException e) {
@@ -796,7 +820,8 @@ public class Compactor extends AbstractServer implements MetricsProducer, Compac
               LOG.info("Updating coordinator with compaction failure: id: {}, extent: {}",
                   job.getExternalCompactionId(), fromThriftExtent);
               TCompactionStatusUpdate update = new TCompactionStatusUpdate(TCompactionState.FAILED,
-                  "Compaction failed due to: " + err.get().getMessage(), -1, -1, -1);
+                  "Compaction failed due to: " + err.get().getMessage(), -1, -1, -1,
+                  fcr.getCompactionAge().toNanos());
               updateCompactionState(job, update);
               updateCompactionFailed(job);
             } catch (RetriesExceededException e) {
