@@ -549,7 +549,8 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
   private void alterTableProperty(TCredentials c, String tableName, String property, String value,
       TableOperation op)
       throws ThriftSecurityException, ThriftTableOperationException, ThriftPropertyException {
-    log.info(">>>> MCSH::alterTableProperty");
+    log.info(">>>> ALTERTABLEPROPERTY");
+    System.out.println(">>>> ALTERTABLEPROPERTY");
     final TableId tableId = ClientServiceHandler.checkTableId(manager.getContext(), tableName, op);
     log.info(">>>> tableId:{}", tableId);
     NamespaceId namespaceId = getNamespaceIdFromTableId(op, tableId);
@@ -559,22 +560,43 @@ public class ManagerClientServiceHandler implements ManagerClientService.Iface {
     }
 
     // verify table property and if so, then do not remove ????
+    log.info(">>>> value: >{}<", value);
+    log.info(">>>> op:    >{}<", op);
+
     try {
-      log.info(">>>> value: >{}<", value);
-      if (value == null || value.isEmpty()) {
+      if (op == TableOperation.REMOVE_PROPERTY) {
+        log.info(">>>> REMOVE_PROPERTY");
+        log.info(">>>> REMOVING property: {}", property);
+        PropUtil.removeProperties(manager.getContext(),
+                TablePropKey.of(manager.getContext(), tableId), List.of(property));
+      } else if (op == TableOperation.SET_PROPERTY) {
+        log.info(">>>> setProperty: {}:{}", property, value);
         if (value == null) {
           log.info(">>>> value is null");
+          value = "";
         } else if (value.isEmpty()) {
           log.info(">>>> value is Empty");
+          value = "";
         }
-        log.info(">>>> remove property: {}", property);
-        PropUtil.removeProperties(manager.getContext(),
-            TablePropKey.of(manager.getContext(), tableId), List.of(property));
-      } else {
-        log.info(">>>> setProperty: {}:{}", property, value);
         PropUtil.setProperties(manager.getContext(), TablePropKey.of(manager.getContext(), tableId),
-            Map.of(property, value));
+                Map.of(property, value));
+
       }
+
+//      if (value == null || value.isEmpty()) {
+//        if (value == null) {
+//          log.info(">>>> value is null");
+//        } else if (value.isEmpty()) {
+//          log.info(">>>> value is Empty");
+//        }
+//        log.info(">>>> REMOVING property: {}", property);
+//        PropUtil.removeProperties(manager.getContext(),
+//            TablePropKey.of(manager.getContext(), tableId), List.of(property));
+//      } else {
+//        log.info(">>>> setProperty: {}:{}", property, value);
+//        PropUtil.setProperties(manager.getContext(), TablePropKey.of(manager.getContext(), tableId),
+//            Map.of(property, value));
+//      }
     } catch (IllegalStateException ex) {
       log.warn("Invalid table property, tried to set: tableId: " + tableId.canonical() + " to: "
           + property + "=" + value);

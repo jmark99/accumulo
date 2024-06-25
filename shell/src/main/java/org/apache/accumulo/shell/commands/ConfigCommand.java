@@ -95,6 +95,7 @@ public class ConfigCommand extends Command {
       throw new NamespaceNotFoundException(null, namespace, null);
     }
     if (cl.hasOption(deleteOpt.getOpt())) {
+      log.info(">>>> Delete Property on table");
       // delete property from table
       String property = cl.getOptionValue(deleteOpt.getOpt());
       if (property.contains("=")) {
